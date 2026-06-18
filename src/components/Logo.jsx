@@ -7,7 +7,8 @@ export const Logo = ({ width = 160, className = '' }) => {
         viewBox="0 0 450 150"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ width: '100%', height: 'auto' }}
+        dir="ltr"
+        style={{ width: '100%', height: 'auto', direction: 'ltr' }}
       >
         {/* Smy text part */}
         <text
