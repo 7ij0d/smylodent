@@ -1,0 +1,335 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+/* ==========================================================================
+   1. COLOR PALETTES & THEME CONFIG (HSL SYSTEM)
+   ========================================================================== */
+:root {
+  /* Light Mode CSS Variables */
+  --primary-hue: 215;
+  --primary-sat: 60%;
+  --primary-light: 16%;
+  --primary: hsl(var(--primary-hue), var(--primary-sat), var(--primary-light));
+  --primary-hover: hsl(var(--primary-hue), var(--primary-sat), calc(var(--primary-light) + 8%));
+  
+  --secondary-hue: 174;
+  --secondary-sat: 75%;
+  --secondary-light: 42%;
+  --secondary: hsl(var(--secondary-hue), var(--secondary-sat), var(--secondary-light));
+  --secondary-hover: hsl(var(--secondary-hue), var(--secondary-sat), calc(var(--secondary-light) - 8%));
+  
+  --accent: hsl(var(--secondary-hue), var(--secondary-sat), 95%);
+  --accent-dark: hsl(var(--secondary-hue), var(--secondary-sat), 88%);
+  
+  --bg-color: hsl(210, 20%, 98%);
+  --surface-color: hsl(0, 0%, 100%);
+  --border-color: hsl(210, 14%, 90%);
+  
+  --text-main: hsl(var(--primary-hue), var(--primary-sat), 12%);
+  --text-muted: hsl(210, 10%, 45%);
+  
+  --success: hsl(145, 63%, 42%);
+  --warning: hsl(38, 92%, 50%);
+  --danger: hsl(354, 70%, 54%);
+  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(10, 51, 92, 0.08);
+  --shadow-lg: 0 10px 25px -5px rgba(10, 51, 92, 0.12);
+  --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+  
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  
+  --font-en: 'Outfit', sans-serif;
+  --font-ar: 'Cairo', sans-serif;
+  
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease-out;
+}
+
+[data-theme="dark"] {
+  /* Dark Mode CSS Variables overrides */
+  --primary-light: 35%;
+  --primary: hsl(var(--primary-hue), var(--primary-sat), var(--primary-light));
+  --primary-hover: hsl(var(--primary-hue), var(--primary-sat), calc(var(--primary-light) + 8%));
+  
+  --secondary-light: 45%;
+  --secondary: hsl(var(--secondary-hue), var(--secondary-sat), var(--secondary-light));
+  --secondary-hover: hsl(var(--secondary-hue), var(--secondary-sat), calc(var(--secondary-light) + 8%));
+  
+  --accent: hsl(var(--secondary-hue), 30%, 15%);
+  --accent-dark: hsl(var(--secondary-hue), 30%, 20%);
+  
+  --bg-color: hsl(222, 47%, 9%);
+  --surface-color: hsl(222, 40%, 14%);
+  --border-color: hsl(222, 30%, 20%);
+  
+  --text-main: hsl(210, 20%, 98%);
+  --text-muted: hsl(210, 10%, 70%);
+  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* ==========================================================================
+   2. BASIC RESET & DOCUMENT STYLING
+   ========================================================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  transition: var(--transition-smooth);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Dynamic Font assignment depending on HTML lang attribute */
+html[lang="ar"] body {
+  font-family: var(--font-ar);
+}
+
+html[lang="en"] body {
+  font-family: var(--font-en);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+/* Common Layout Containers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: var(--transition-smooth);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* ==========================================================================
+   3. REUSABLE ANIMATIONS
+   ========================================================================== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.03); }
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-smile {
+  animation: pulse-subtle 3s infinite ease-in-out;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--accent) 37%, var(--border-color) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ==========================================================================
+   4. DESIGN SYSTEM INTERFACES (CARD, BTNS, FORMS)
+   ========================================================================== */
+
+/* Premium Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  transition: var(--transition-smooth);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: #ffffff;
+}
+.btn-secondary:hover {
+  background-color: var(--secondary-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+  border: 2px solid var(--border-color);
+  background-color: transparent;
+  color: var(--text-main);
+}
+.btn-outline:hover {
+  border-color: var(--secondary);
+  color: var(--secondary);
+  background-color: var(--accent);
+}
+
+/* Floating Badges */
+.badge {
+  display: inline-flex;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.badge-discount {
+  background-color: var(--danger);
+  color: #ffffff;
+}
+.badge-available {
+  background-color: var(--success);
+  color: #ffffff;
+}
+.badge-limited {
+  background-color: var(--warning);
+  color: #ffffff;
+}
+.badge-unavailable {
+  background-color: var(--text-muted);
+  color: #ffffff;
+}
+
+/* Inputs & Form Fields */
+.form-group {
+  margin-bottom: 1.25rem;
+}
+.form-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+.form-input {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  transition: var(--transition-smooth);
+}
+.form-input:focus {
+  border-color: var(--secondary);
+  background-color: var(--surface-color);
+  box-shadow: 0 0 0 3px hsla(var(--secondary-hue), var(--secondary-sat), var(--secondary-light), 0.15);
+}
+
+/* Premium Card wrapper */
+.card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+  overflow: hidden;
+}
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--secondary);
+}
+
+/* Glassmorphism pane */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+[data-theme="dark"] .glass {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* RTL Layout modifiers */
+[dir="rtl"] .ml-auto { margin-right: auto; margin-left: unset; }
+[dir="rtl"] .mr-auto { margin-left: auto; margin-right: unset; }
+
+/* Print Styles optimized for PDF invoicing */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .card, .glass {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    background: transparent !important;
+  }
+}

@@ -1,0 +1,377 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import supabase from '../supabaseClient';
+import ReviewSection from '../components/ReviewSection';
+import QRModal from '../components/QRModal';
+import SkeletonLoader from '../components/SkeletonLoader';
+import ProductCard from '../components/ProductCard';
+import { ShoppingCart, Heart, Share2, QrCode, Check, Copy, Play, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+
+export const ProductDetails = () => {
+  const { id } = useParams();
+  const { lang, t, isRtl } = useLanguage();
+  const { addToCart } = useCart();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const [product, setProduct] = useState(null);
+  const [subject, setSubject] = useState(null);
+  const [similarProducts, setSimilarProducts] = useState([]);
+  const [images, setImages] = useState([]);
+  const [activeImage, setActiveImage] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(true);
+
+  // Sharing states
+  const [copied, setCopied] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+
+  // Load product details
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      setLoading(true);
+      try {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (prod) {
+          setProduct(prod);
+          
+          // Image gallery setups (main photo + any supplementary product_images)
+          const imgList = [prod.image_url];
+          const { data: extraImgs } = await supabase
+            .from('product_images')
+            .select('image_url')
+            .eq('product_id', prod.id)
+            .order('sort_order', { ascending: true });
+          
+          if (extraImgs) {
+            extraImgs.forEach((img) => imgList.push(img.image_url));
+          }
+          setImages(imgList.filter(Boolean));
+          setActiveImage(prod.image_url);
+
+          // Subject & year name loading
+          if (prod.subject_id) {
+            const { data: sub } = await supabase
+              .from('subjects')
+              .select('*')
+              .eq('id', prod.subject_id)
+              .single();
+            if (sub) setSubject(sub);
+
+            // Similar recommendations
+            const { data: similar } = await supabase
+              .from('products')
+              .select('*')
+              .eq('subject_id', prod.subject_id)
+              .eq('is_active', true)
+              .eq('is_archived', false)
+              .not('id', 'eq', prod.id)
+              .limit(3);
+            if (similar) setSimilarProducts(similar);
+          }
+
+          // Save to Recently Viewed in LocalStorage
+          saveRecentlyViewed(prod);
+        }
+      } catch (err) {
+        console.error('Error fetching product specs', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductDetails();
+  }, [id]);
+
+  const saveRecentlyViewed = (prod) => {
+    const stored = localStorage.getItem('smylodent_recent_viewed');
+    let list = stored ? JSON.parse(stored) : [];
+    // Filter duplicates
+    list = list.filter((item) => item.id !== prod.id);
+    list.unshift({
+      id: prod.id,
+      name_ar: prod.name_ar,
+      name_en: prod.name_en,
+      price: prod.price,
+      compare_at_price: prod.compare_at_price,
+      image_url: prod.image_url,
+      availability: prod.availability
+    });
+    localStorage.setItem('smylodent_recent_viewed', JSON.stringify(list.slice(0, 4)));
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAddToCart = () => {
+    if (product) {
+      addToCart(product, quantity);
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (product) {
+      addToCart(product, quantity);
+      navigate('/checkout');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container animate-fade-in" style={{ padding: '2rem 0' }}>
+        <SkeletonLoader type="details" />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="container" style={{ padding: '3rem 0', textAlign: 'center' }}>
+        <h2>عذراً، هذا المنتج غير متوفر حالياً.</h2>
+        <p style={{ color: 'var(--text-muted)' }}>Sorry, this product was not found.</p>
+        <Link to="/" className="btn btn-primary" style={{ marginTop: '1rem' }}>
+          {t('nav.home')}
+        </Link>
+      </div>
+    );
+  }
+
+  const discountPercent = product.compare_at_price
+    ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
+    : 0;
+
+  return (
+    <div className="container" style={{ padding: '2rem 0', display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+      
+      {/* 1. PRODUCT METADATA BLOCK */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '3rem' }} className="details-main-grid">
+        
+        {/* Left Side: Photo Album */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          {/* Main Photo viewport */}
+          <div
+            className="card"
+            style={{
+              position: 'relative',
+              height: '380px',
+              backgroundColor: 'var(--border-color)',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <img
+              src={activeImage || 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=600&auto=format'}
+              alt={lang === 'ar' ? product.name_ar : product.name_en}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
+              className="zoom-image"
+            />
+            {discountPercent > 0 && (
+              <span className="badge badge-discount" style={{ position: 'absolute', top: '1rem', left: isRtl ? 'auto' : '1rem', right: isRtl ? '1rem' : 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+                -{discountPercent}%
+              </span>
+            )}
+          </div>
+
+          {/* Mini Album pre-views */}
+          {images.length > 1 && (
+            <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.4rem' }}>
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveImage(img)}
+                  style={{
+                    width: '65px',
+                    height: '65px',
+                    borderRadius: 'var(--radius-sm)',
+                    overflow: 'hidden',
+                    border: activeImage === img ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
+                    padding: 0,
+                    flexShrink: 0
+                  }}
+                >
+                  <img src={img} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </button>
+              ))}
+            </div>
+          )}
+
+        </div>
+
+        {/* Right Side: Text details and selectors */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          
+          {/* Subject tag link */}
+          {subject && (
+            <Link
+              to={`/subject/${subject.slug}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                color: 'var(--secondary)',
+                fontWeight: 700,
+                fontSize: '0.85rem'
+              }}
+            >
+              <Sparkles size={16} />
+              {lang === 'ar' ? subject.name_ar : subject.name_en}
+            </Link>
+          )}
+
+          {/* Title */}
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>
+            {lang === 'ar' ? product.name_ar : product.name_en}
+          </h1>
+
+          {/* Pricing tag row */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.8rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+            <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--secondary)' }}>
+              {product.price} <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{t('cart.currency')}</span>
+            </span>
+            {product.compare_at_price && (
+              <span style={{ fontSize: '1rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                {product.compare_at_price} {t('cart.currency')}
+              </span>
+            )}
+          </div>
+
+          {/* Short description */}
+          <p style={{ fontSize: '0.95rem', lineHeight: 1.6 }}>
+            {lang === 'ar' ? product.description_ar : product.description_en}
+          </p>
+
+          {/* Bullet specifications list */}
+          {(lang === 'ar' ? product.details_ar : product.details_en) && (
+            <div style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
+              <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', listStyle: 'none' }}>
+                {(lang === 'ar' ? product.details_ar : product.details_en).split('\n').map((point, idx) => (
+                  <li key={idx} style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.4rem' }}>
+                    <span style={{ color: 'var(--secondary)' }}>•</span>
+                    {point.trim().replace(/^•\s*/, '')}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Quantity selector & Actions */}
+          {product.availability !== 'unavailable' ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1rem' }}>
+              
+              {/* Qty count control */}
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ padding: '0.5rem 1rem', fontWeight: 'bold' }}>-</button>
+                <span style={{ width: '40px', textAlign: 'center', fontWeight: 700 }}>{quantity}</span>
+                <button onClick={() => setQuantity(Math.min(product.stock_quantity || 99, quantity + 1))} style={{ padding: '0.5rem 1rem', fontWeight: 'bold' }}>+</button>
+              </div>
+
+              {/* Add to Cart */}
+              <button onClick={handleAddToCart} className="btn btn-outline" style={{ flexGrow: 1, padding: '0.75rem 1.5rem' }}>
+                <ShoppingCart size={18} />
+                {t('product.add_to_cart')}
+              </button>
+
+              {/* Checkout / Order now */}
+              <button onClick={handleBuyNow} className="btn btn-secondary" style={{ flexGrow: 1, padding: '0.75rem 1.5rem' }}>
+                {t('product.buy_now')}
+              </button>
+
+            </div>
+          ) : (
+            <div style={{ padding: '1rem', textAlign: 'center', backgroundColor: 'var(--border-color)', borderRadius: 'var(--radius-md)', color: 'var(--danger)', fontWeight: 700, marginTop: '1rem' }}>
+              {t('subject.unavailable')}
+            </div>
+          )}
+
+          {/* Share links */}
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+            <button onClick={handleCopyLink} className="btn btn-outline" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', borderRadius: 'var(--radius-sm)', gap: '0.3rem' }}>
+              {copied ? <Check size={14} style={{ color: 'var(--success)' }} /> : <Copy size={14} />}
+              {copied ? t('product.link_copied') : t('product.share')}
+            </button>
+            <button onClick={() => setQrOpen(true)} className="btn btn-outline" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', borderRadius: 'var(--radius-sm)', gap: '0.3rem' }}>
+              <QrCode size={14} />
+              {t('product.qr_code')}
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* 2. DEMO VIDEO OR MANUAL DIAGRAMS */}
+      {product.usage_video_url && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Play size={18} style={{ color: 'var(--secondary)' }} />
+              {t('product.usage_video')}
+            </h3>
+          </div>
+          <div style={{ position: 'relative', overflow: 'hidden', width: '100%', paddingTop: '56.25%', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+            <iframe
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+              src={product.usage_video_url}
+              title="Usage demonstration video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
+        </section>
+      )}
+
+      {/* 3. REVIEW SECTION */}
+      <ReviewSection productId={product.id} />
+
+      {/* 4. SIMILAR RECOMMENDATIONS */}
+      {similarProducts.length > 0 && (
+        <section>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1.25rem' }}>
+            {t('product.similar_products')}
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
+            {similarProducts.map((prod) => (
+              <ProductCard key={prod.id} product={prod} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* QR Code sharing popup */}
+      <QRModal
+        isOpen={qrOpen}
+        onClose={() => setQrOpen(false)}
+        productUrl={window.location.href}
+        productName={lang === 'ar' ? product.name_ar : product.name_en}
+      />
+
+      <style>{`
+        .zoom-image:hover {
+          transform: scale(1.08);
+        }
+        @media (max-width: 768px) {
+          .details-main-grid {
+            grid-template-columns: 1fr !important;
+            gap: 2rem !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default ProductDetails;

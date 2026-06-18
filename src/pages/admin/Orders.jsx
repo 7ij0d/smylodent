@@ -1,0 +1,410 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
+import supabase from '../../supabaseClient';
+import InvoiceView from '../../components/InvoiceView';
+import { Search, Eye, RefreshCw, Printer, X, ClipboardList, CheckCircle } from 'lucide-react';
+
+export const Orders = () => {
+  const { t, lang, isRtl } = useLanguage();
+  const location = useLocation();
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Details Modal
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [showInvoicePrint, setShowInvoicePrint] = useState(false);
+
+  // Load query from URL if redirected from elsewhere (e.g. dashboard link)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    if (q) setSearchQuery(q);
+    fetchOrders();
+  }, [location.search]);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            *,
+            products (*)
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (data) setOrders(data);
+    } catch (err) {
+      console.error('Error fetching admin order index', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    setUpdatingStatus(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (!error) {
+        // Refresh local orders list
+        setOrders((prev) =>
+          prev.map((ord) => (ord.id === orderId ? { ...ord, status: newStatus } : ord))
+        );
+        
+        // Refresh selected details model
+        if (selectedOrder && selectedOrder.id === orderId) {
+          setSelectedOrder((prev) => ({ ...prev, status: newStatus }));
+        }
+
+        // Add Notification for customer
+        const statusTextAr = t(`tracking.status_${newStatus}`);
+        const statusTextEn = t(`tracking.status_${newStatus}`);
+        
+        await supabase.from('notifications').insert({
+          user_id: selectedOrder?.user_id || null, // null if guest, will still show up based on matching tokens in general query
+          title_ar: `تحديث حالة الطلب #${selectedOrder?.order_number}`,
+          title_en: `Order Status Updated #${selectedOrder?.order_number}`,
+          message_ar: `حالة طلبك الآن هي: ${statusTextAr}`,
+          message_en: `Your order status is now: ${statusTextEn}`,
+          type: 'order_status'
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Get filtered lists
+  const getFilteredOrders = () => {
+    let list = [...orders];
+
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (ord) =>
+          ord.order_number.toLowerCase().includes(q) ||
+          ord.customer_name.toLowerCase().includes(q) ||
+          ord.customer_phone.includes(q)
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      list = list.filter((ord) => ord.status === statusFilter);
+    }
+
+    return list;
+  };
+
+  const filteredList = getFilteredOrders();
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-fade-in">
+      
+      {/* Title */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)' }}>
+          {t('admin.orders')}
+        </h1>
+        <button onClick={fetchOrders} className="action-btn" title="Refresh">
+          <RefreshCw size={16} />
+        </button>
+      </div>
+
+      {/* Search and Filters row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }} className="orders-action-row">
+        
+        {/* Search Input */}
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="البحث بالاسم، رقم الطلب، أو الهاتف..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ paddingLeft: '2.5rem' }}
+          />
+          <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+        </div>
+
+        {/* Filter Dropdown */}
+        <select
+          className="form-input"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">جميع حالات الطلبات</option>
+          <option value="new">طلبات جديدة</option>
+          <option value="under_review">قيد المراجعة</option>
+          <option value="accepted">تم القبول</option>
+          <option value="preparing">جاري التجهيز</option>
+          <option value="out_for_delivery">خرج للتوصيل</option>
+          <option value="delivered">تم التسليم</option>
+          <option value="cancelled">ملغي</option>
+        </select>
+
+      </div>
+
+      {/* Orders Grid/Table List */}
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="skeleton" style={{ height: '70px', width: '100%' }}></div>
+          <div className="skeleton" style={{ height: '70px', width: '100%' }}></div>
+        </div>
+      ) : filteredList.length === 0 ? (
+        <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--surface-color)' }}>
+          لا توجد طلبات تطابق معايير البحث والفلترة.
+        </div>
+      ) : (
+        <div className="card" style={{ overflowX: 'auto', backgroundColor: 'var(--surface-color)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'start' }}>
+            <thead>
+              <tr style={{ backgroundColor: 'var(--accent)', borderBottom: '2px solid var(--border-color)', color: 'var(--text-main)', fontWeight: 700 }}>
+                <th style={{ padding: '1rem 0.75rem' }}>{t('admin.order_number')}</th>
+                <th style={{ padding: '1rem 0.75rem' }}>{t('admin.customer')}</th>
+                <th style={{ padding: '1rem 0.75rem' }}>تاريخ الطلب</th>
+                <th style={{ padding: '1rem 0.75rem' }}>{t('admin.total')}</th>
+                <th style={{ padding: '1rem 0.75rem' }}>{t('admin.status')}</th>
+                <th style={{ padding: '1rem 0.75rem', textAlign: 'center' }}>{t('admin.action')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredList.map((ord) => (
+                <tr key={ord.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <td style={{ padding: '1rem 0.75rem', fontWeight: 700 }}>#{ord.order_number}</td>
+                  <td style={{ padding: '1rem 0.75rem' }}>
+                    <p style={{ fontWeight: 600 }}>{ord.customer_name}</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{ord.customer_phone}</p>
+                  </td>
+                  <td style={{ padding: '1rem 0.75rem', color: 'var(--text-muted)' }}>
+                    {new Date(ord.created_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '1rem 0.75rem', fontWeight: 800 }}>{ord.total_price} د.ل</td>
+                  <td style={{ padding: '1rem 0.75rem' }}>
+                    <span
+                      style={{
+                        padding: '3px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold',
+                        backgroundColor: ord.status === 'delivered' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 195, 154, 0.15)',
+                        color: ord.status === 'delivered' ? 'var(--success)' : 'var(--secondary)'
+                      }}
+                    >
+                      {t(`tracking.status_${ord.status}`)}
+                    </span>
+                  </td>
+                  <td style={{ padding: '1rem 0.75rem', textAlign: 'center' }}>
+                    <button
+                      onClick={() => setSelectedOrder(ord)}
+                      className="btn btn-outline"
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: 'var(--radius-sm)', gap: '0.2rem' }}
+                    >
+                      <Eye size={12} />
+                      عرض
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          ORDER DETAILS DRAWER/MODAL
+          ------------------------------------------------------------- */}
+      {selectedOrder && !showInvoicePrint && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            zIndex: 9999
+          }}
+          onClick={() => setSelectedOrder(null)}
+        >
+          <div
+            className="animate-fade-in"
+            style={{
+              width: '100%',
+              maxWidth: '550px',
+              backgroundColor: 'var(--surface-color)',
+              height: '100%',
+              overflowY: 'auto',
+              padding: '2rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.5rem',
+              boxShadow: 'var(--shadow-lg)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>تفاصيل الطلب #{selectedOrder.order_number.slice(0, 12)}...</h3>
+              <button onClick={() => setSelectedOrder(null)} className="action-btn">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Status updates action */}
+            <div style={{ padding: '1rem', backgroundColor: 'var(--accent)', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <label className="form-label" style={{ fontWeight: 700 }}>{t('admin.change_status')}</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <select
+                  className="form-input"
+                  value={selectedOrder.status}
+                  onChange={(e) => handleUpdateStatus(selectedOrder.id, e.target.value)}
+                  disabled={updatingStatus}
+                  style={{ backgroundColor: 'var(--surface-color)' }}
+                >
+                  <option value="new">طلب جديد</option>
+                  <option value="under_review">قيد المراجعة</option>
+                  <option value="accepted">تم القبول</option>
+                  <option value="preparing">جاري التجهيز</option>
+                  <option value="out_for_delivery">خرج للتوصيل</option>
+                  <option value="delivered">تم التسليم</option>
+                  <option value="cancelled">إلغاء الطلب</option>
+                </select>
+                <button
+                  onClick={() => setShowInvoicePrint(true)}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', gap: '0.3rem' }}
+                >
+                  <Printer size={16} />
+                  الفاتورة
+                </button>
+              </div>
+            </div>
+
+            {/* Customer info */}
+            <div>
+              <h4 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)', marginBottom: '0.6rem' }}>بيانات الطالب</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <p>الاسم: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_name}</strong></p>
+                <p>رقم الهاتف: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_phone}</strong></p>
+                {selectedOrder.customer_phone_secondary && <p>الهاتف الاحتياطي: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_phone_secondary}</strong></p>}
+                <p>الكلية والجامعة: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.university} - {selectedOrder.college}</strong></p>
+              </div>
+            </div>
+
+            {/* Ordered Tools */}
+            <div>
+              <h4 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)', marginBottom: '0.6rem' }}>الأدوات والمستلزمات المطلوبة</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {selectedOrder.order_items?.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      padding: '0.75rem',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.82rem'
+                    }}
+                  >
+                    <span>
+                      {lang === 'ar' ? item.products?.name_ar || item.name_ar : item.products?.name_en || item.name_en}{' '}
+                      <strong style={{ color: 'var(--secondary)' }}>x{item.quantity}</strong>
+                    </span>
+                    <span style={{ fontWeight: 700 }}>
+                      {item.price} د.ل
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Order totals */}
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>الإجمالي الفرعي:</span>
+                <span style={{ fontWeight: 600 }}>{(selectedOrder.total_price - selectedOrder.shipping_fee + selectedOrder.discount_amount).toFixed(2)} د.ل</span>
+              </div>
+              {selectedOrder.discount_amount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--danger)' }}>
+                  <span>قيمة الخصومات:</span>
+                  <span style={{ fontWeight: 600 }}>-{selectedOrder.discount_amount.toFixed(2)} د.ل</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>رسوم التوصيل:</span>
+                <span style={{ fontWeight: 600 }}>{selectedOrder.shipping_fee} د.ل</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid var(--secondary)', paddingTop: '0.5rem', fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)' }}>
+                <span>الإجمالي الكلي:</span>
+                <span>{selectedOrder.total_price} د.ل</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Invoice modal overlay specifically for printing */}
+      {showInvoicePrint && selectedOrder && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'var(--bg-color)',
+            zIndex: 99999,
+            overflowY: 'auto',
+            padding: '2rem 1rem'
+          }}
+        >
+          <div className="container" style={{ maxWidth: '800px' }}>
+            <button
+              onClick={() => setShowInvoicePrint(false)}
+              className="btn btn-outline no-print"
+              style={{ marginBottom: '1.5rem', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+            >
+              العودة للطلبات / Back
+            </button>
+            <InvoiceView order={selectedOrder} />
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .orders-action-row {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default Orders;
