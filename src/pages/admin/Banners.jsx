@@ -24,6 +24,97 @@ export const Banners = () => {
   const [linkUrl, setLinkUrl] = useState('');
   const [isActive, setIsActive] = useState(true);
 
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200; // Larger for banner images
+          const MAX_HEIGHT = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          resolve(dataUrl);
+        };
+      };
+    });
+  };
+
+  const uploadFile = async (file) => {
+    try {
+      const compressedDataUrl = await compressImage(file);
+      const arr = compressedDataUrl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('smylodent-assets')
+        .upload(filePath, blob, { contentType: mime });
+
+      if (error) {
+        console.warn('Storage upload failed, falling back to base64', error);
+        return compressedDataUrl;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('smylodent-assets')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err) {
+      console.warn('Upload process error, falling back to base64', err);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => resolve(e.target.result);
+      });
+    }
+  };
+
+  const handleImageChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const url = await uploadFile(file);
+    setImageUrl(url);
+    setUploadingImage(false);
+  };
+
   useEffect(() => {
     fetchBanners();
   }, []);
@@ -220,8 +311,21 @@ export const Banners = () => {
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">رابط خلفية البانر (Image URL) *</label>
-                <input type="url" className="form-input" required value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+                <label className="form-label">خلفية البانر *</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="رابط الصورة أو اختر ملفاً..."
+                  />
+                  <label className="btn btn-outline" style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: 0, display: 'inline-flex', alignItems: 'center' }}>
+                    {uploadingImage ? 'جاري الرفع...' : 'اختر ملف'}
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} disabled={uploadingImage} />
+                  </label>
+                </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
