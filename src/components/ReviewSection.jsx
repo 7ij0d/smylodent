@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../supabaseClient';
@@ -134,78 +135,91 @@ export const ReviewSection = ({ productId }) => {
             {t('product.add_review')}
           </h4>
 
-          {message && (
-            <div style={{ padding: '0.75rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--accent)', border: '1px solid var(--secondary)', color: 'var(--text-main)', fontSize: '0.8rem', marginBottom: '1rem' }}>
-              {message}
+          {user ? (
+            <>
+              {message && (
+                <div style={{ padding: '0.75rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--accent)', border: '1px solid var(--secondary)', color: 'var(--text-main)', fontSize: '0.8rem', marginBottom: '1rem' }}>
+                  {message}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                
+                {/* Rating Stars Input Selector */}
+                <div>
+                  <span className="form-label">{t('product.rating')}</span>
+                  <div style={{ display: 'flex', gap: '0.4rem', color: 'var(--warning)', cursor: 'pointer' }}>
+                    {[...Array(5)].map((_, i) => {
+                      const currentStar = i + 1;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setRating(currentStar)}
+                          onMouseEnter={() => setHoveredRating(currentStar)}
+                          onMouseLeave={() => setHoveredRating(0)}
+                          style={{ padding: '2px' }}
+                        >
+                          <Star
+                            size={22}
+                            fill={currentStar <= (hoveredRating || rating) ? 'var(--warning)' : 'none'}
+                            strokeWidth={1.5}
+                            style={{ transition: 'var(--transition-fast)' }}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Name Input */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">{t('checkout.full_name')}</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    placeholder={t('product.name_placeholder')}
+                    value={reviewerName}
+                    onChange={(e) => setReviewerName(e.target.value)}
+                  />
+                </div>
+
+                {/* Comment Input */}
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">{t('product.comment')}</label>
+                  <textarea
+                    className="form-input"
+                    rows="3"
+                    placeholder={t('product.comment_placeholder')}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    style={{ resize: 'none' }}
+                  />
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn btn-primary"
+                  style={{ width: '100%', marginTop: '0.5rem', padding: '0.6rem' }}
+                >
+                  {t('product.submit_review')}
+                </button>
+
+              </form>
+            </>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                يرجى تسجيل الدخول أولاً لتتمكن من إضافة تقييم لهذا المنتج.
+              </p>
+              <Link to="/signin" className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.5rem', justifyContent: 'center' }}>
+                تسجيل الدخول / Sign In
+              </Link>
             </div>
           )}
-
-          <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            
-            {/* Rating Stars Input Selector */}
-            <div>
-              <span className="form-label">{t('product.rating')}</span>
-              <div style={{ display: 'flex', gap: '0.4rem', color: 'var(--warning)', cursor: 'pointer' }}>
-                {[...Array(5)].map((_, i) => {
-                  const currentStar = i + 1;
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setRating(currentStar)}
-                      onMouseEnter={() => setHoveredRating(currentStar)}
-                      onMouseLeave={() => setHoveredRating(0)}
-                      style={{ padding: '2px' }}
-                    >
-                      <Star
-                        size={22}
-                        fill={currentStar <= (hoveredRating || rating) ? 'var(--warning)' : 'none'}
-                        strokeWidth={1.5}
-                        style={{ transition: 'var(--transition-fast)' }}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Name Input */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{t('checkout.full_name')}</label>
-              <input
-                type="text"
-                className="form-input"
-                required
-                placeholder={t('product.name_placeholder')}
-                value={reviewerName}
-                onChange={(e) => setReviewerName(e.target.value)}
-              />
-            </div>
-
-            {/* Comment Input */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{t('product.comment')}</label>
-              <textarea
-                className="form-input"
-                rows="3"
-                placeholder={t('product.comment_placeholder')}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                style={{ resize: 'none' }}
-              />
-            </div>
-
-            {/* Submit button */}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '0.5rem', padding: '0.6rem' }}
-            >
-              {t('product.submit_review')}
-            </button>
-
-          </form>
         </div>
 
       </div>
