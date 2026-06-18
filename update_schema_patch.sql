@@ -1,7 +1,21 @@
--- SQL Database Patch for SMYLODENT
+-- SQL Database Patch for SMYLODENT (Updated)
 -- Copy and run this in your Supabase project's SQL Editor (under SQL Editor -> New Query)
 
--- 1. Add image_url column to the years table if it does not exist
+-- 1. Add image_url column to the products table if it does not exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'products' 
+          AND column_name = 'image_url'
+    ) THEN
+        ALTER TABLE public.products ADD COLUMN image_url text;
+    END IF;
+END $$;
+
+-- 2. Add image_url column to the years table if it does not exist
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -15,7 +29,7 @@ BEGIN
     END IF;
 END $$;
 
--- 2. Disable Row-Level Security (RLS) on all tables to avoid permission errors
+-- 3. Disable Row-Level Security (RLS) on all tables to avoid permission errors
 ALTER TABLE public.profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.years DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subjects DISABLE ROW LEVEL SECURITY;
@@ -31,11 +45,11 @@ ALTER TABLE public.banners DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pages_content DISABLE ROW LEVEL SECURITY;
 
--- 3. Grant full permissions to Supabase API roles (anon and authenticated)
+-- 4. Grant full permissions to Supabase API roles (anon and authenticated)
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
 
--- 4. Create the admin user in auth.users (if not already existing) with password 'admin123'
+-- 5. Create the admin user in auth.users (if not already existing) with password 'admin123'
 INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, email_change, email_change_token_new, recovery_token)
 VALUES (
   '00000000-0000-0000-0000-000000000000',
@@ -57,7 +71,7 @@ VALUES (
   ''
 ) ON CONFLICT (id) DO NOTHING;
 
--- 5. Create the corresponding profile for the admin user
+-- 6. Create the corresponding profile for the admin user
 INSERT INTO public.profiles (id, full_name, phone, role)
 VALUES (
   'a1a1a1a1-1234-5678-9999-999999999999',
