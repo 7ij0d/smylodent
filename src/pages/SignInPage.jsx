@@ -92,14 +92,7 @@ export const SignInPage = () => {
           </div>
         )}
 
-        {/* Demo Admin credentials alert */}
-        {!isSignUp && (
-          <div style={{ padding: '0.8rem 1rem', backgroundColor: 'var(--accent)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', lineHeight: 1.5 }}>
-            <p style={{ fontWeight: 700, color: 'var(--secondary)', marginBottom: '0.2rem' }}>💡 لتجربة لوحة تحكم الأدمن:</p>
-            <p>البريد: <strong style={{ color: 'var(--primary)' }}>admin@smylodent.com</strong></p>
-            <p>الرمز: <strong style={{ color: 'var(--primary)' }}>admin123</strong></p>
-          </div>
-        )}
+
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
