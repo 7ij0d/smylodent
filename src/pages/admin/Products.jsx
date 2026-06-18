@@ -310,7 +310,7 @@ export const Products = () => {
       fetchData();
     } catch (err) {
       console.error(err);
-      alert('حدث خطأ أثناء حفظ التغييرات. / Error saving product.');
+      alert('حدث خطأ أثناء حفظ التغييرات / Error saving product:\n' + (err.message || err.details || JSON.stringify(err)));
     } finally {
       setSubmitting(false);
     }
