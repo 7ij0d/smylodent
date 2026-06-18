@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import supabase from '../../supabaseClient';
@@ -231,7 +232,7 @@ export const Orders = () => {
       {/* -------------------------------------------------------------
           ORDER DETAILS DRAWER/MODAL
           ------------------------------------------------------------- */}
-      {selectedOrder && !showInvoicePrint && (
+      {selectedOrder && !showInvoicePrint && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -365,10 +366,10 @@ export const Orders = () => {
 
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Invoice modal overlay specifically for printing */}
-      {showInvoicePrint && selectedOrder && (
+      {showInvoicePrint && selectedOrder && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -393,7 +394,7 @@ export const Orders = () => {
             <InvoiceView order={selectedOrder} />
           </div>
         </div>
-      )}
+      , document.body)}
 
       <style>{`
         @media (max-width: 768px) {

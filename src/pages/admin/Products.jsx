@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import supabase from '../../supabaseClient';
 import { Plus, Edit, Trash2, Archive, Check, X, FileEdit, PlusCircle, Search } from 'lucide-react';
@@ -336,7 +337,7 @@ export const Products = () => {
       {/* -------------------------------------------------------------
           ADD / EDIT PRODUCT FORM MODAL
           ------------------------------------------------------------- */}
-      {showFormModal && (
+      {showFormModal && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -500,7 +501,7 @@ export const Products = () => {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
       <style>{`
         @media (max-width: 768px) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import supabase from '../../supabaseClient';
 import { Plus, Edit, Trash2, X, PlusCircle } from 'lucide-react';
@@ -153,7 +154,7 @@ export const Subjects = () => {
       )}
 
       {/* SUBJECT EDIT MODAL */}
-      {showModal && (
+      {showModal && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -232,7 +233,7 @@ export const Subjects = () => {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
     </div>
   );
