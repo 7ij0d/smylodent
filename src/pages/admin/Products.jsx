@@ -234,18 +234,28 @@ export const Products = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+
+    const nameArTrimmed = nameAr.trim();
+    const nameEnTrimmed = nameEn.trim();
+
+    // Check if at least one name is provided
+    if (!nameArTrimmed && !nameEnTrimmed) {
+      alert(lang === 'ar' ? 'يجب إدخال اسم المنتج بلغة واحدة على الأقل!' : 'Product name must be provided in at least one language!');
+      return;
+    }
+
     setSubmitting(true);
 
     const productPayload = {
-      name_ar: nameAr.trim(),
-      name_en: nameEn.trim(),
-      description_ar: descriptionAr.trim(),
-      description_en: descriptionEn.trim(),
+      name_ar: nameArTrimmed || nameEnTrimmed,
+      name_en: nameEnTrimmed || nameArTrimmed,
+      description_ar: descriptionAr.trim() || null,
+      description_en: descriptionEn.trim() || null,
       details_ar: detailsAr.trim() || null,
       details_en: detailsEn.trim() || null,
       price: parseFloat(price),
       compare_at_price: comparePrice ? parseFloat(comparePrice) : null,
-      stock_quantity: parseInt(stockQuantity),
+      stock_quantity: stockQuantity !== '' ? parseInt(stockQuantity) : 0,
       availability,
       year_id: yearId || null,
       subject_id: subjectId || null,
@@ -482,12 +492,12 @@ export const Products = () => {
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="modal-form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">{t('admin.product_name_ar')} *</label>
-                  <input type="text" className="form-input" required value={nameAr} onChange={(e) => setNameAr(e.target.value)} />
+                  <label className="form-label">{t('admin.product_name_ar')} (أحدهما مطلوب / One required) *</label>
+                  <input type="text" className="form-input" value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder="اسم المنتج بالعربية..." />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">{t('admin.product_name_en')} *</label>
-                  <input type="text" className="form-input" required value={nameEn} onChange={(e) => setNameEn(e.target.value)} />
+                  <label className="form-label">{t('admin.product_name_en')} (أحدهما مطلوب / One required) *</label>
+                  <input type="text" className="form-input" value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder="Product name in English..." />
                 </div>
               </div>
 
@@ -504,8 +514,8 @@ export const Products = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="modal-form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">{t('admin.stock')} *</label>
-                  <input type="number" className="form-input" required value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} />
+                  <label className="form-label">{t('admin.stock')}</label>
+                  <input type="number" className="form-input" value={stockQuantity} onChange={(e) => setStockQuantity(e.target.value)} placeholder="0" />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">{t('subject.filter_availability')} *</label>
@@ -521,7 +531,7 @@ export const Products = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="modal-form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">{t('admin.year')} *</label>
-                  <select className="form-input" value={yearId} onChange={(e) => setYearId(e.target.value)}>
+                  <select className="form-input" required value={yearId} onChange={(e) => setYearId(e.target.value)}>
                     <option value="">اختر السنة الدراسية</option>
                     {years.map((y) => (
                       <option key={y.id} value={y.id}>{y.name_ar}</option>
@@ -530,7 +540,7 @@ export const Products = () => {
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">{t('admin.subject')} *</label>
-                  <select className="form-input" value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
+                  <select className="form-input" required value={subjectId} onChange={(e) => setSubjectId(e.target.value)}>
                     <option value="">اختر المادة الدراسية</option>
                     {filteredSubjects.map((s) => (
                       <option key={s.id} value={s.id}>{s.name_ar}</option>
@@ -613,12 +623,12 @@ export const Products = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1rem' }} className="modal-form-row">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">{t('admin.description_ar')} *</label>
-                  <textarea className="form-input" rows="2" required value={descriptionAr} onChange={(e) => setDescriptionAr(e.target.value)} style={{ resize: 'none' }} />
+                  <label className="form-label">{t('admin.description_ar')}</label>
+                  <textarea className="form-input" rows="2" value={descriptionAr} onChange={(e) => setDescriptionAr(e.target.value)} style={{ resize: 'none' }} />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">{t('admin.description_en')} *</label>
-                  <textarea className="form-input" rows="2" required value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} style={{ resize: 'none' }} />
+                  <label className="form-label">{t('admin.description_en')}</label>
+                  <textarea className="form-input" rows="2" value={descriptionEn} onChange={(e) => setDescriptionEn(e.target.value)} style={{ resize: 'none' }} />
                 </div>
               </div>
 
