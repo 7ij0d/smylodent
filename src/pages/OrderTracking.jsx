@@ -3,7 +3,7 @@ import { useLocation, Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import supabase from '../supabaseClient';
 import InvoiceView from '../components/InvoiceView';
-import { Search, MapPin, ClipboardList, CheckCircle2, Clock, Truck, ShieldAlert } from 'lucide-react';
+import { Search, MapPin, ClipboardList, CheckCircle2, Clock, Truck, ShieldAlert, ArrowRight, ArrowLeft } from 'lucide-react';
 
 export const OrderTracking = () => {
   const { t, lang, isRtl } = useLanguage();
@@ -15,6 +15,8 @@ export const OrderTracking = () => {
   
   // Results
   const [order, setOrder] = useState(null);
+  const [phoneOrders, setPhoneOrders] = useState([]);
+  const [searchMode, setSearchMode] = useState(''); // 'single' or 'multiple'
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -23,27 +25,77 @@ export const OrderTracking = () => {
     const queryParams = new URLSearchParams(location.search);
     const orderParam = queryParams.get('order');
     const phoneParam = queryParams.get('phone');
-    if (orderParam && phoneParam) {
-      setOrderNumber(orderParam);
+    if (phoneParam) {
       setPhone(phoneParam);
-      handleTrackOrder(null, orderParam, phoneParam);
+      if (orderParam) {
+        setOrderNumber(orderParam);
+        handleTrackOrder(null, orderParam, phoneParam);
+      } else {
+        setOrderNumber('');
+        handleTrackOrder(null, '', phoneParam);
+      }
     }
   }, [location]);
 
   const handleTrackOrder = async (e, forceOrder, forcePhone) => {
     if (e) e.preventDefault();
     
-    const oNum = forceOrder || orderNumber;
-    const oPhone = forcePhone || phone;
+    // Use forced params if passed, otherwise fall back to state
+    const oNum = forceOrder !== undefined ? forceOrder : orderNumber;
+    const oPhone = forcePhone !== undefined ? forcePhone : phone;
 
-    if (!oNum || !oPhone) return;
+    if (!oPhone) return;
 
     setLoading(true);
     setSearched(true);
     setOrder(null);
+    setPhoneOrders([]);
 
     try {
-      // Fetch matching order details
+      if (oNum && oNum.trim()) {
+        // Mode 1: Track specific order
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
+              *,
+              products (*)
+            )
+          `)
+          .eq('order_number', oNum.trim())
+          .eq('customer_phone', oPhone.trim())
+          .single();
+        
+        if (data) {
+          setOrder(data);
+        }
+        setSearchMode('single');
+      } else {
+        // Mode 2: Search all orders by phone number
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('customer_phone', oPhone.trim())
+          .order('created_at', { ascending: false });
+
+        if (data) {
+          setPhoneOrders(data);
+        }
+        setSearchMode('multiple');
+      }
+    } catch (err) {
+      console.error('Order tracking lookup error', err);
+      setSearchMode('single');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectOrder = async (orderItem) => {
+    setLoading(true);
+    setOrderNumber(orderItem.order_number);
+    try {
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -53,15 +105,15 @@ export const OrderTracking = () => {
             products (*)
           )
         `)
-        .eq('order_number', oNum.trim())
-        .eq('customer_phone', oPhone.trim())
+        .eq('id', orderItem.id)
         .single();
       
       if (data) {
         setOrder(data);
+        setSearchMode('single');
       }
     } catch (err) {
-      console.error('Order tracking lookup error', err);
+      console.error('Failed to load selected order details', err);
     } finally {
       setLoading(false);
     }
@@ -112,10 +164,11 @@ export const OrderTracking = () => {
         className="tracking-form-row"
       >
         <div className="form-group" style={{ marginBottom: 0 }}>
-          <label className="form-label">{t('tracking.order_number')} *</label>
+          <label className="form-label">
+            {t('tracking.order_number')} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>{t('tracking.optional')}</span>
+          </label>
           <input
             type="text"
-            required
             className="form-input"
             placeholder="SD-XXXXX-XXXX"
             value={orderNumber}
@@ -141,13 +194,103 @@ export const OrderTracking = () => {
         </button>
       </form>
 
+      {/* Phone Number Results List */}
+      {!loading && searchMode === 'multiple' && (
+        <div className="card animate-fade-in" style={{ padding: '2rem', backgroundColor: 'var(--surface-color)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.8rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--primary)' }}>
+              {t('tracking.phone_search_results')}
+            </h3>
+          </div>
+
+          {phoneOrders.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--danger)' }}>
+              <ShieldAlert size={40} style={{ margin: '0 auto 1rem auto' }} />
+              <p>{t('tracking.no_orders_phone')}</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              {phoneOrders.map((o) => {
+                const formattedDate = new Date(o.created_at).toLocaleDateString(lang === 'ar' ? 'ar-LY' : 'en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                });
+
+                // Status styling helpers
+                const getStatusBadgeColor = (status) => {
+                  if (status === 'delivered') return 'rgba(34, 197, 94, 0.15)';
+                  if (status === 'cancelled') return 'rgba(239, 68, 68, 0.15)';
+                  return 'rgba(59, 130, 246, 0.15)';
+                };
+                const getStatusTextColor = (status) => {
+                  if (status === 'delivered') return 'var(--success)';
+                  if (status === 'cancelled') return 'var(--danger)';
+                  return 'var(--secondary)';
+                };
+
+                return (
+                  <div
+                    key={o.order_number}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '1.2rem',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-color)',
+                      transition: 'var(--transition-smooth)',
+                      cursor: 'pointer'
+                    }}
+                    className="recent-order-item"
+                    onClick={() => handleSelectOrder(o)}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--secondary)', fontSize: '1.05rem' }}>
+                        {o.order_number}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {formattedDate} • {o.total_price} {t('cart.currency')}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: getStatusBadgeColor(o.status),
+                          color: getStatusTextColor(o.status)
+                        }}
+                      >
+                        {t(`tracking.status_${o.status}`)}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+                      >
+                        {t('tracking.track_now')}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tracking results display */}
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '2rem 0' }}>
           <div className="skeleton" style={{ height: '120px', width: '100%' }}></div>
           <div className="skeleton" style={{ height: '300px', width: '100%' }}></div>
         </div>
-      ) : searched && !order ? (
+      ) : searched && !order && searchMode === 'single' ? (
         <div className="card" style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--danger)', backgroundColor: 'var(--surface-color)' }}>
           <ShieldAlert size={48} style={{ margin: '0 auto 1rem auto' }} />
           <h3>{t('tracking.not_found')}</h3>
@@ -157,6 +300,18 @@ export const OrderTracking = () => {
         </div>
       ) : order ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }} className="animate-fade-in">
+
+          {/* Back to Results List Button (only if we did a phone list query earlier) */}
+          {phoneOrders.length > 0 && (
+            <button
+              onClick={() => { setSearchMode('multiple'); setOrder(null); }}
+              className="btn btn-outline"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'fit-content', padding: '0.5rem 1rem', fontSize: '0.85rem', backgroundColor: 'var(--surface-color)' }}
+            >
+              {isRtl ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+              {lang === 'ar' ? 'العودة لقائمة الطلبات' : 'Back to Orders List'}
+            </button>
+          )}
           
           {/* Cancelled Alert Banner */}
           {order.status === 'cancelled' && (
@@ -264,6 +419,15 @@ export const OrderTracking = () => {
       ) : null}
 
       <style>{`
+        .recent-order-item:hover {
+          border-color: var(--secondary) !important;
+          background-color: var(--accent) !important;
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-sm);
+        }
+        .delete-recent-btn:hover {
+          background-color: rgba(239, 68, 68, 0.1) !important;
+        }
         @media (max-width: 768px) {
           .tracking-form-row {
             grid-template-columns: 1fr !important;

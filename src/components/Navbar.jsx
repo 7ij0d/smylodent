@@ -19,7 +19,8 @@ import {
   Globe,
   HelpCircle,
   PhoneCall,
-  Info
+  Info,
+  ClipboardList
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -102,6 +103,7 @@ export const Navbar = () => {
               </div>
             </div>
             <Link to="/about" className="nav-link">{t('nav.about')}</Link>
+            <Link to="/track" className={`nav-link ${location.pathname === '/track' ? 'active-link' : ''}`}>{t('nav.track')}</Link>
             <Link to="/contact" className="nav-link">{t('nav.contact')}</Link>
             <Link to="/faq" className="nav-link">{t('nav.faq')}</Link>
           </nav>
@@ -303,6 +305,9 @@ export const Navbar = () => {
             </div>
             <Link to="/about" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Info size={18} /> {t('nav.about')}
+            </Link>
+            <Link to="/track" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ClipboardList size={18} /> {t('nav.track')}
             </Link>
             <Link to="/contact" onClick={() => setMobileMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <PhoneCall size={18} /> {t('nav.contact')}

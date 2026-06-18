@@ -11,7 +11,8 @@
     "admin": "Admin Panel",
     "about": "About Us",
     "contact": "Contact",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "track": "Track Order"
   },
   "home": {
     "welcome": "Welcome to Smylodent",
@@ -106,7 +107,7 @@
     "street_required": "Please select or type a delivery street/area",
     "place_order": "Confirm Order (Cash on Delivery)",
     "success_title": "Order Placed Successfully!",
-    "success_desc": "Your order number is: {order_number}. You can track status or print the invoice below.",
+    "success_desc": "Your order number is: {order_number}. You can return and track its status at any time by clicking 'Track Order' in the top menu bar using your phone number.",
     "track_order": "Track Order",
     "print_invoice": "View/Print Invoice",
     "required": "This field is required"
@@ -125,7 +126,12 @@
     "status_out_for_delivery": "Out for Delivery with Courier",
     "status_delivered": "Successfully Delivered. Thank you!",
     "status_cancelled": "Order Cancelled",
-    "timeline": "Order Tracking Timeline"
+    "timeline": "Order Tracking Timeline",
+    "order_number_optional": "Order Number (Optional - search with phone only to view all your orders)",
+    "phone_search_results": "Orders linked to this phone number",
+    "no_orders_phone": "Sorry, no orders found matching this phone number.",
+    "track_now": "Track Now",
+    "optional": "(Optional)"
   },
   "invoice": {
     "title": "Sales Invoice",
