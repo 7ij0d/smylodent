@@ -28,6 +28,7 @@ import Subjects from './pages/admin/Subjects';
 import Banners from './pages/admin/Banners';
 import Settings from './pages/admin/Settings';
 import Messages from './pages/admin/Messages';
+import Users from './pages/admin/Users';
 
 // Public Layout Wrapper
 const PublicLayout = () => {
@@ -77,6 +78,7 @@ export const App = () => {
         <Route path="banners" element={<Banners />} />
         <Route path="settings" element={<Settings />} />
         <Route path="messages" element={<Messages />} />
+        <Route path="users" element={<Users />} />
       </Route>
 
     </Routes>

@@ -3,9 +3,10 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { KeyRound, Mail, User, Phone, Landmark, Lock, HelpCircle } from 'lucide-react';
+import MapPicker from '../components/MapPicker';
 
 export const SignInPage = () => {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, lang } = useLanguage();
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
@@ -19,6 +20,11 @@ export const SignInPage = () => {
   const [phone, setPhone] = useState('');
   const [university, setUniversity] = useState('جامعة طرابلس');
   const [college, setCollege] = useState('كلية طب الأسنان');
+  
+  // Geolocation States (optional during signup)
+  const [addressText, setAddressText] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
 
   // Status
   const [loading, setLoading] = useState(false);
@@ -44,6 +50,9 @@ export const SignInPage = () => {
           phone: phone,
           university: university,
           college: college,
+          address_text: addressText || null,
+          latitude: latitude || null,
+          longitude: longitude || null,
           role: 'student'
         });
         if (error) throw error;
@@ -144,6 +153,37 @@ export const SignInPage = () => {
                   className="form-input"
                   value={college}
                   onChange={(e) => setCollege(e.target.value)}
+                />
+              </div>
+
+              {/* Optional Map Location Selection */}
+              <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                <label className="form-label">
+                  {lang === 'ar' ? 'تحديد العنوان على الخريطة (اختياري)' : 'Select Address on Map (Optional)'}
+                </label>
+                {addressText && (
+                  <div style={{ 
+                    fontSize: '0.8rem', 
+                    backgroundColor: 'var(--accent)', 
+                    padding: '0.6rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    marginBottom: '0.5rem', 
+                    border: '1px solid var(--border-color)', 
+                    color: 'var(--text-main)', 
+                    fontWeight: 600 
+                  }}>
+                    📍 {addressText}
+                  </div>
+                )}
+                <MapPicker
+                  latitude={latitude}
+                  longitude={longitude}
+                  onLocationSelect={({ lat, lng, address }) => {
+                    setLatitude(lat);
+                    setLongitude(lng);
+                    setAddressText(address);
+                  }}
+                  height="180px"
                 />
               </div>
             </>

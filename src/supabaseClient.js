@@ -458,10 +458,15 @@ const mockAuth = {
     await profiles.insert({
       id: mockUser.id,
       full_name: options?.data?.full_name || 'طالب جديد',
+      email: email,
       phone: options?.data?.phone || '',
       phone_secondary: options?.data?.phone_secondary || '',
       university: options?.data?.university || 'جامعة طرابلس',
       college: options?.data?.college || 'كلية طب الأسنان',
+      address_text: options?.data?.address_text || null,
+      latitude: options?.data?.latitude || null,
+      longitude: options?.data?.longitude || null,
+      status: 'active',
       role: options?.data?.role || 'student'
     });
 
@@ -490,10 +495,15 @@ const mockAuth = {
       await profiles.insert({
         id: mockUser.id,
         full_name: fullName,
+        email: email,
         phone: '0912345678',
         phone_secondary: '',
         university: 'جامعة طرابلس',
         college: 'كلية طب الأسنان',
+        address_text: '',
+        latitude: null,
+        longitude: null,
+        status: 'active',
         role: role
       });
     }

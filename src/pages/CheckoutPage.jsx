@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import supabase from '../supabaseClient';
 import InvoiceView from '../components/InvoiceView';
 import { CheckCircle2, FileText, MapPin, Truck, HelpCircle, Phone } from 'lucide-react';
+import MapPicker from '../components/MapPicker';
 
 const TRIPOLI_STREETS = [
   'حي الأندلس',
@@ -64,6 +65,7 @@ export const CheckoutPage = () => {
 
   // Form Fields
   const [fullName, setFullName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [phoneSec, setPhoneSec] = useState('');
   const [university, setUniversity] = useState('جامعة طرابلس');
@@ -76,6 +78,12 @@ export const CheckoutPage = () => {
   const [streetSearch, setStreetSearch] = useState('');
   const [showStreetDropdown, setShowStreetDropdown] = useState(false);
   const [locationUrl, setLocationUrl] = useState('');
+
+  // Geolocation States
+  const [addressText, setAddressText] = useState('');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const [saveLocationDefault, setSaveLocationDefault] = useState(false);
 
   // States
   const [submitting, setSubmitting] = useState(false);
@@ -94,8 +102,14 @@ export const CheckoutPage = () => {
       setPhoneSec(profile.phone_secondary || '');
       setUniversity(profile.university || 'جامعة طرابلس');
       setCollege(profile.college || 'كلية طب الأسنان');
+      setAddressText(profile.address_text || '');
+      setLatitude(profile.latitude ? parseFloat(profile.latitude) : null);
+      setLongitude(profile.longitude ? parseFloat(profile.longitude) : null);
     }
-  }, [profile]);
+    if (user) {
+      setCustomerEmail(user.email || '');
+    }
+  }, [profile, user]);
 
   // Handle street blur with delay to let option click fire
   const handleBlur = () => {
@@ -126,32 +140,29 @@ export const CheckoutPage = () => {
     setSubmitting(true);
     setErrorMsg('');
 
-    // Fallback: If street is typed but not selected in dropdown, use the typed value
-    let finalStreet = selectedStreet;
-    if (!finalStreet && streetSearch) {
-      finalStreet = streetSearch;
-    }
-
     // Validation for home delivery
-    if (shippingOption !== 'faculty' && !finalStreet.trim()) {
-      setErrorMsg(lang === 'ar' ? 'يرجى تحديد الشارع أو المنطقة للتوصيل المنزلي.' : 'Please select or enter a street for home delivery.');
-      setSubmitting(false);
-      return;
+    if (shippingOption !== 'faculty') {
+      if (!latitude || !longitude) {
+        setErrorMsg(lang === 'ar' ? 'يرجى تحديد موقعك على الخريطة للتوصيل المنزلي.' : 'Please select your location on the map for home delivery.');
+        setSubmitting(false);
+        return;
+      }
     }
 
     // Generate Order number: e.g. SD-98234-5819
     const orderNum = `SD-${Math.floor(10000 + Math.random() * 90000)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
-      // Format final notes with street and location link
+      // Format final notes with street and location link (coordinates link is automatically created)
       let combinedNotes = notes || '';
       if (shippingOption !== 'faculty') {
+        const locationLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
         const streetLabel = lang === 'ar' ? 'الشارع/المنطقة' : 'Street/Area';
-        const locationLabel = lang === 'ar' ? 'رابط الموقع' : 'Location Link';
+        const locationLabel = lang === 'ar' ? 'خرائط جوجل' : 'Google Maps';
         const notesLabel = lang === 'ar' ? 'ملاحظات' : 'Notes';
         
-        combinedNotes = `[${streetLabel}: ${finalStreet}]` + 
-          (locationUrl ? ` [${locationLabel}: ${locationUrl}]` : '') + 
+        combinedNotes = `[${streetLabel}: ${addressText || 'محدد على الخريطة'}]` + 
+          ` [${locationLabel}: ${locationLink}]` + 
           (notes ? ` \n[${notesLabel}: ${notes}]` : '');
       }
 
@@ -159,17 +170,33 @@ export const CheckoutPage = () => {
         order_number: orderNum,
         user_id: user?.id || null,
         customer_name: fullName,
+        customer_email: customerEmail || null,
         customer_phone: phone,
         customer_phone_secondary: phoneSec || null,
         university,
         college,
         notes: combinedNotes || null,
+        address_text: shippingOption === 'faculty' ? null : addressText,
+        latitude: shippingOption === 'faculty' ? null : latitude,
+        longitude: shippingOption === 'faculty' ? null : longitude,
         status: 'new',
         total_price: finalTotal,
         discount_amount: totalDiscount,
         shipping_fee: getShippingFee(),
         created_at: new Date().toISOString()
       };
+
+      // If registered user requested saving this location as default, update their profile
+      if (user && saveLocationDefault && shippingOption !== 'faculty') {
+        await supabase
+          .from('profiles')
+          .update({
+            address_text: addressText,
+            latitude: latitude,
+            longitude: longitude
+          })
+          .eq('id', user.id);
+      }
 
       // 1. Insert order record
       const { data: newOrder, error: orderErr } = await supabase
@@ -332,6 +359,20 @@ export const CheckoutPage = () => {
               />
             </div>
 
+            {/* Email Address */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">{lang === 'ar' ? 'البريد الإلكتروني (اختياري)' : 'Email (Optional)'}</label>
+              <input
+                type="email"
+                className="form-input"
+                placeholder="name@example.com"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }} className="form-row">
             {/* University selection dropdown */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">{t('checkout.university')} *</label>
@@ -347,18 +388,18 @@ export const CheckoutPage = () => {
                 <option value="جامعة أخرى / كليات خاصة">جامعة أخرى / كليات خاصة</option>
               </select>
             </div>
-          </div>
 
-          {/* College */}
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">{t('checkout.college')} *</label>
-            <input
-              type="text"
-              className="form-input"
-              required
-              value={college}
-              onChange={(e) => setCollege(e.target.value)}
-            />
+            {/* College */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">{t('checkout.college')} *</label>
+              <input
+                type="text"
+                className="form-input"
+                required
+                value={college}
+                onChange={(e) => setCollege(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Delivery Options Selector */}
@@ -462,119 +503,58 @@ export const CheckoutPage = () => {
             </div>
           </div>
 
-          {/* Tripoli Street Selection & Maps Location Link (Visible only for home deliveries) */}
+          {/* Tripoli Map Location Picker (Visible only for home deliveries) */}
           {(shippingOption === 'tripoli_center' || shippingOption === 'tripoli_suburbs') && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--accent)', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--accent)', marginTop: '0.5rem' }}>
               
-              {/* Searchable Street Select */}
-              <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
-                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>{t('checkout.select_street')}</span>
-                  {selectedStreet && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 'bold' }}>
-                      ✓ {lang === 'ar' ? 'تم الاختيار' : 'Selected'}
-                    </span>
-                  )}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">
+                  {lang === 'ar' ? 'تحديد موقع التوصيل على الخريطة *' : 'Specify delivery location on map *'}
                 </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder={t('checkout.select_street_placeholder')}
-                    value={streetSearch}
-                    onChange={(e) => {
-                      setStreetSearch(e.target.value);
-                      setSelectedStreet('');
-                      setShowStreetDropdown(true);
-                    }}
-                    onFocus={() => setShowStreetDropdown(true)}
-                    onBlur={handleBlur}
-                    style={{ paddingRight: isRtl ? '2.5rem' : '1rem', paddingLeft: isRtl ? '1rem' : '2.5rem' }}
-                  />
-                  <MapPin size={18} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '0.8rem', color: 'var(--text-muted)' }} />
-                </div>
-
-                {/* Dropdown Menu */}
-                {showStreetDropdown && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      backgroundColor: 'var(--surface-color)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-sm)',
-                      boxShadow: 'var(--shadow-md)',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                      zIndex: 100,
-                      marginTop: '0.25rem'
-                    }}
-                  >
-                    {filteredStreets.length > 0 ? (
-                      filteredStreets.map((street) => (
-                        <div
-                          key={street}
-                          onMouseDown={() => {
-                            setSelectedStreet(street);
-                            setStreetSearch(street);
-                            setShowStreetDropdown(false);
-                          }}
-                          style={{
-                            padding: '0.8rem 1rem',
-                            cursor: 'pointer',
-                            backgroundColor: selectedStreet === street ? 'var(--accent)' : 'transparent',
-                            color: selectedStreet === street ? 'var(--secondary)' : 'var(--text-color)',
-                            fontSize: '0.9rem',
-                            borderBottom: '1px solid var(--border-color)',
-                            fontWeight: selectedStreet === street ? 700 : 400
-                          }}
-                          className="street-option"
-                        >
-                          {street}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={{ padding: '0.8rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {lang === 'ar' ? 'لا توجد نتائج مطابقة' : 'No matching results'}
-                      </div>
-                    )}
-
-                    {/* Custom Value Option */}
-                    {streetSearch.trim() && !TRIPOLI_STREETS.includes(streetSearch.trim()) && (
-                      <div
-                        onMouseDown={() => {
-                          setSelectedStreet(streetSearch);
-                          setShowStreetDropdown(false);
-                        }}
-                        style={{
-                          padding: '0.8rem 1rem',
-                          cursor: 'pointer',
-                          backgroundColor: 'rgba(var(--secondary-rgb), 0.1)',
-                          color: 'var(--secondary)',
-                          fontSize: '0.9rem',
-                          borderTop: '1px dashed var(--border-color)',
-                          fontWeight: 700
-                        }}
-                      >
-                        {lang === 'ar' ? `استخدام القيمة المدخلة: "${streetSearch}"` : `Use custom value: "${streetSearch}"`}
-                      </div>
-                    )}
+                
+                {addressText ? (
+                  <div style={{ 
+                    fontSize: '0.82rem', 
+                    backgroundColor: 'var(--surface-color)', 
+                    padding: '0.75rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    marginBottom: '0.75rem', 
+                    border: '1px solid var(--border-color)', 
+                    color: 'var(--text-main)', 
+                    fontWeight: 600,
+                    lineHeight: 1.4
+                  }}>
+                    📍 {addressText}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    {lang === 'ar' ? 'يرجى النقر على موقعك على الخريطة لتحديد عنوان التوصيل تلقائياً' : 'Please click on your location on the map to pin the delivery address'}
                   </div>
                 )}
-              </div>
 
-              {/* Location URL Input */}
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">{t('checkout.location_url')}</label>
-                <input
-                  type="url"
-                  className="form-input"
-                  placeholder={t('checkout.location_url_placeholder')}
-                  value={locationUrl}
-                  onChange={(e) => setLocationUrl(e.target.value)}
+                <MapPicker
+                  latitude={latitude}
+                  longitude={longitude}
+                  onLocationSelect={({ lat, lng, address }) => {
+                    setLatitude(lat);
+                    setLongitude(lng);
+                    setAddressText(address);
+                  }}
+                  height="220px"
                 />
+
+                {/* Default address save option for registered students */}
+                {user && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', marginTop: '0.8rem', color: 'var(--text-main)' }}>
+                    <input
+                      type="checkbox"
+                      checked={saveLocationDefault}
+                      onChange={(e) => setSaveLocationDefault(e.target.checked)}
+                      style={{ accentColor: 'var(--secondary)' }}
+                    />
+                    <span>{lang === 'ar' ? 'حفظ هذا الموقع كعنوان افتراضي لحسابي' : 'Save this location as my default account address'}</span>
+                  </label>
+                )}
               </div>
 
             </div>

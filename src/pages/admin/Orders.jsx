@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import supabase from '../../supabaseClient';
 import InvoiceView from '../../components/InvoiceView';
+import MapPicker from '../../components/MapPicker';
 import { Search, Eye, RefreshCw, Printer, X, ClipboardList, CheckCircle } from 'lucide-react';
 
 export const Orders = () => {
@@ -307,11 +308,40 @@ export const Orders = () => {
               <h4 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)', marginBottom: '0.6rem' }}>بيانات الطالب</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 <p>الاسم: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_name}</strong></p>
+                {selectedOrder.customer_email && <p>البريد الإلكتروني: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_email}</strong></p>}
                 <p>رقم الهاتف: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_phone}</strong></p>
                 {selectedOrder.customer_phone_secondary && <p>الهاتف الاحتياطي: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.customer_phone_secondary}</strong></p>}
                 <p>الكلية والجامعة: <strong style={{ color: 'var(--text-main)' }}>{selectedOrder.university} - {selectedOrder.college}</strong></p>
               </div>
             </div>
+
+            {/* Map Location */}
+            {selectedOrder.latitude && selectedOrder.longitude && (
+              <div>
+                <h4 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--primary)', marginBottom: '0.6rem' }}>موقع التوصيل على الخريطة</h4>
+                {selectedOrder.address_text && (
+                  <div style={{ 
+                    fontSize: '0.8rem', 
+                    backgroundColor: 'var(--accent)', 
+                    padding: '0.6rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    marginBottom: '0.5rem', 
+                    border: '1px solid var(--border-color)', 
+                    color: 'var(--text-main)', 
+                    fontWeight: 600,
+                    lineHeight: 1.4
+                  }}>
+                    📍 {selectedOrder.address_text}
+                  </div>
+                )}
+                <MapPicker
+                  latitude={selectedOrder.latitude}
+                  longitude={selectedOrder.longitude}
+                  readOnly={true}
+                  height="180px"
+                />
+              </div>
+            )}
 
             {/* Ordered Tools */}
             <div>

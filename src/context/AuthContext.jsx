@@ -61,7 +61,15 @@ export const AuthProvider = ({ children }) => {
         .single();
       
       if (data) {
-        setProfile(data);
+        if (data.status === 'disabled') {
+          await supabase.auth.signOut();
+          setUser(null);
+          setProfile(null);
+          localStorage.removeItem('mock_user_session');
+          alert('تم تعطيل حسابك من قبل الإدارة. / Your account has been disabled by the admin.');
+        } else {
+          setProfile(data);
+        }
       } else if (error) {
         console.warn('Profile fetch error', error);
       }
