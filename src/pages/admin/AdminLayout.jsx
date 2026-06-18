@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -27,6 +27,22 @@ export const AdminLayout = () => {
   const [inputCode, setInputCode] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Background Auto-Sign-in to Supabase if passcode is valid but session is not established
+  useEffect(() => {
+    let active = true;
+    const checkAndSignIn = async () => {
+      if (passcode === '9922' && !user && !loading) {
+        try {
+          await signIn('admin@smylodent.com', 'admin123');
+        } catch (err) {
+          console.warn('Auto background sign-in failed', err);
+        }
+      }
+    };
+    checkAndSignIn();
+    return () => { active = false; };
+  }, [passcode, user, loading, signIn]);
 
   const handleVerify = async (e) => {
     e.preventDefault();
