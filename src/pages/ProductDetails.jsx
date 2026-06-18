@@ -166,19 +166,92 @@ export const ProductDetails = () => {
             style={{
               position: 'relative',
               height: '380px',
-              backgroundColor: 'var(--border-color)',
+              backgroundColor: 'var(--accent)',
               overflow: 'hidden',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-color)'
             }}
           >
             <img
               src={activeImage || 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=600&auto=format'}
               alt={product.name_en}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', transition: 'transform 0.3s ease' }}
               className="zoom-image"
             />
+            
+            {/* Carousel navigation arrows */}
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const currentIdx = images.indexOf(activeImage);
+                    const prevIdx = (currentIdx - 1 + images.length) % images.length;
+                    setActiveImage(images[prevIdx]);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: '1rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 10,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--secondary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.5)'}
+                  title={isRtl ? 'الصورة السابقة' : 'Previous image'}
+                >
+                  {isRtl ? <ArrowRight size={18} /> : <ArrowLeft size={18} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const currentIdx = images.indexOf(activeImage);
+                    const nextIdx = (currentIdx + 1) % images.length;
+                    setActiveImage(images[nextIdx]);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '1rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 10,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'var(--transition-fast)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--secondary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.5)'}
+                  title={isRtl ? 'الصورة التالية' : 'Next image'}
+                >
+                  {isRtl ? <ArrowLeft size={18} /> : <ArrowRight size={18} />}
+                </button>
+              </>
+            )}
+
             {discountPercent > 0 && (
               <span className="badge badge-discount" style={{ position: 'absolute', top: '1rem', left: isRtl ? 'auto' : '1rem', right: isRtl ? '1rem' : 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
                 -{discountPercent}%
@@ -188,7 +261,7 @@ export const ProductDetails = () => {
 
           {/* Mini Album pre-views */}
           {images.length > 1 && (
-            <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.4rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.4rem', justifyContent: 'center' }}>
               {images.map((img, idx) => (
                 <button
                   key={idx}
@@ -199,11 +272,12 @@ export const ProductDetails = () => {
                     borderRadius: 'var(--radius-sm)',
                     overflow: 'hidden',
                     border: activeImage === img ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
+                    backgroundColor: 'var(--accent)',
                     padding: 0,
                     flexShrink: 0
                   }}
                 >
-                  <img src={img} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={img} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
             </div>
