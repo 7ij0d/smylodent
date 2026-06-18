@@ -7,6 +7,55 @@ import supabase from '../supabaseClient';
 import InvoiceView from '../components/InvoiceView';
 import { CheckCircle2, FileText, MapPin, Truck, HelpCircle, Phone } from 'lucide-react';
 
+const TRIPOLI_STREETS = [
+  'حي الأندلس',
+  'السياحية',
+  'السراج',
+  'جنزور',
+  'قرجي',
+  'غوط الشعال',
+  'الرياضية',
+  'بن عاشور',
+  'جرابة',
+  'النوفليين',
+  'فشلوم',
+  'زاوية الدهماني',
+  'الظهرة',
+  'سوق الجمعة',
+  'تاجوراء',
+  'عين زارة',
+  'صلاح الدين',
+  'طريق المطار',
+  'الهضبة الخضراء',
+  'الهضبة الشرقية',
+  'حي دمشق',
+  'باب بن غشير',
+  'شارع النصر',
+  'شارع عمر المختار',
+  'شارع الصريم',
+  'شارع الرشيد',
+  'شارع ميزران',
+  'الدريبي',
+  'الشارع الغربي',
+  'سيدي المصري',
+  'زناتة',
+  'السبعة',
+  'عرادة',
+  'الحشان',
+  'الغرارات',
+  'الكحيلي',
+  'خلة الفرجان',
+  'وادي الربيع',
+  'قصر بن غشير',
+  'طريق الشط',
+  'سيدي سليم',
+  'أبو سليم',
+  'الهضبة البدري',
+  'السواني',
+  'الكريمية',
+  'طريق المشتل'
+].sort((a, b) => a.localeCompare(b, 'ar'));
+
 export const CheckoutPage = () => {
   const { t, isRtl, lang } = useLanguage();
   const { cartItems, subtotal, totalDiscount, clearCart } = useCart();
@@ -20,17 +69,27 @@ export const CheckoutPage = () => {
   const [university, setUniversity] = useState('جامعة طرابلس');
   const [college, setCollege] = useState('كلية طب الأسنان');
   const [notes, setNotes] = useState('');
-  const [shippingOption, setShippingOption] = useState('faculty'); // faculty, tripoli_home, other_cities
+  const [shippingOption, setShippingOption] = useState('faculty'); // faculty, tripoli_center, tripoli_suburbs
   
+  // Searchable street selection & Maps location
+  const [selectedStreet, setSelectedStreet] = useState('');
+  const [streetSearch, setStreetSearch] = useState('');
+  const [showStreetDropdown, setShowStreetDropdown] = useState(false);
+  const [locationUrl, setLocationUrl] = useState('');
+
   // States
   const [submitting, setSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Auto-fill logged-in profile data
+  // Auto-fill logged-in profile data (excluding admin profile name)
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name || '');
+      if (profile.full_name === 'أدمن سمايلودنت' || profile.role === 'admin') {
+        setFullName('');
+      } else {
+        setFullName(profile.full_name || '');
+      }
       setPhone(profile.phone || '');
       setPhoneSec(profile.phone_secondary || '');
       setUniversity(profile.university || 'جامعة طرابلس');
@@ -38,11 +97,24 @@ export const CheckoutPage = () => {
     }
   }, [profile]);
 
+  // Handle street blur with delay to let option click fire
+  const handleBlur = () => {
+    setTimeout(() => {
+      setShowStreetDropdown(false);
+    }, 200);
+  };
+
+  // Filter streets matching search
+  const filteredStreets = TRIPOLI_STREETS.filter(street =>
+    street.toLowerCase().includes(streetSearch.toLowerCase())
+  );
+
   // Calculate Shipping fee
   const getShippingFee = () => {
     if (shippingOption === 'faculty') return 0;
-    if (shippingOption === 'tripoli_home') return 10;
-    return 25;
+    if (shippingOption === 'tripoli_center') return 10;
+    if (shippingOption === 'tripoli_suburbs') return 15;
+    return 0;
   };
 
   const finalTotal = subtotal + getShippingFee();
@@ -54,10 +126,35 @@ export const CheckoutPage = () => {
     setSubmitting(true);
     setErrorMsg('');
 
+    // Fallback: If street is typed but not selected in dropdown, use the typed value
+    let finalStreet = selectedStreet;
+    if (!finalStreet && streetSearch) {
+      finalStreet = streetSearch;
+    }
+
+    // Validation for home delivery
+    if (shippingOption !== 'faculty' && !finalStreet.trim()) {
+      setErrorMsg(lang === 'ar' ? 'يرجى تحديد الشارع أو المنطقة للتوصيل المنزلي.' : 'Please select or enter a street for home delivery.');
+      setSubmitting(false);
+      return;
+    }
+
     // Generate Order number: e.g. SD-98234-5819
     const orderNum = `SD-${Math.floor(10000 + Math.random() * 90000)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
+      // Format final notes with street and location link
+      let combinedNotes = notes || '';
+      if (shippingOption !== 'faculty') {
+        const streetLabel = lang === 'ar' ? 'الشارع/المنطقة' : 'Street/Area';
+        const locationLabel = lang === 'ar' ? 'رابط الموقع' : 'Location Link';
+        const notesLabel = lang === 'ar' ? 'ملاحظات' : 'Notes';
+        
+        combinedNotes = `[${streetLabel}: ${finalStreet}]` + 
+          (locationUrl ? ` [${locationLabel}: ${locationUrl}]` : '') + 
+          (notes ? ` \n[${notesLabel}: ${notes}]` : '');
+      }
+
       const orderData = {
         order_number: orderNum,
         user_id: user?.id || null,
@@ -66,7 +163,7 @@ export const CheckoutPage = () => {
         customer_phone_secondary: phoneSec || null,
         university,
         college,
-        notes: notes || null,
+        notes: combinedNotes || null,
         status: 'new',
         total_price: finalTotal,
         discount_amount: totalDiscount,
@@ -287,7 +384,10 @@ export const CheckoutPage = () => {
                   type="radio"
                   name="shipping"
                   checked={shippingOption === 'faculty'}
-                  onChange={() => setShippingOption('faculty')}
+                  onChange={() => {
+                    setShippingOption('faculty');
+                    setErrorMsg('');
+                  }}
                   style={{ accentColor: 'var(--secondary)' }}
                 />
                 <MapPin size={20} style={{ color: 'var(--secondary)' }} />
@@ -297,64 +397,188 @@ export const CheckoutPage = () => {
                 </div>
               </label>
 
-              {/* Home Delivery Tripoli */}
+              {/* Home Delivery Tripoli Center */}
               <label
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.8rem',
                   padding: '1rem',
-                  border: shippingOption === 'tripoli_home' ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
+                  border: shippingOption === 'tripoli_center' ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
-                  backgroundColor: shippingOption === 'tripoli_home' ? 'var(--accent)' : 'transparent',
+                  backgroundColor: shippingOption === 'tripoli_center' ? 'var(--accent)' : 'transparent',
                   transition: 'var(--transition-fast)'
                 }}
               >
                 <input
                   type="radio"
                   name="shipping"
-                  checked={shippingOption === 'tripoli_home'}
-                  onChange={() => setShippingOption('tripoli_home')}
+                  checked={shippingOption === 'tripoli_center'}
+                  onChange={() => {
+                    setShippingOption('tripoli_center');
+                    setErrorMsg('');
+                  }}
                   style={{ accentColor: 'var(--secondary)' }}
                 />
                 <Truck size={20} style={{ color: 'var(--secondary)' }} />
                 <div>
-                  <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('checkout.delivery_tripoli_home')}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>توصيل للمنزل أو المعمل داخل طرابلس في غضون 24-48 ساعة</p>
+                  <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('checkout.delivery_tripoli_center')}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'توصيل للمنزل أو المعمل داخل طرابلس المركز في غضون 24-48 ساعة' : 'Home or lab delivery inside Tripoli Center within 24-48 hours'}</p>
                 </div>
               </label>
 
-              {/* Nationwide Libya delivery */}
+              {/* Tripoli Suburbs delivery */}
               <label
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.8rem',
                   padding: '1rem',
-                  border: shippingOption === 'other_cities' ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
+                  border: shippingOption === 'tripoli_suburbs' ? '2px solid var(--secondary)' : '1px solid var(--border-color)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',
-                  backgroundColor: shippingOption === 'other_cities' ? 'var(--accent)' : 'transparent',
+                  backgroundColor: shippingOption === 'tripoli_suburbs' ? 'var(--accent)' : 'transparent',
                   transition: 'var(--transition-fast)'
                 }}
               >
                 <input
                   type="radio"
                   name="shipping"
-                  checked={shippingOption === 'other_cities'}
-                  onChange={() => setShippingOption('other_cities')}
+                  checked={shippingOption === 'tripoli_suburbs'}
+                  onChange={() => {
+                    setShippingOption('tripoli_suburbs');
+                    setErrorMsg('');
+                  }}
                   style={{ accentColor: 'var(--secondary)' }}
                 />
                 <Truck size={20} style={{ color: 'var(--secondary)' }} />
                 <div>
-                  <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('checkout.delivery_out')}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>شحن سريع لمدن: بنغازي، مصراتة، الزاوية، الخمس، سبها وغيرها</p>
+                  <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{t('checkout.delivery_tripoli_suburbs')}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{lang === 'ar' ? 'توصيل للمنزل أو المعمل بضواحي طرابلس في غضون 24-48 ساعة' : 'Home or lab delivery to Tripoli suburbs within 24-48 hours'}</p>
                 </div>
               </label>
 
             </div>
           </div>
+
+          {/* Tripoli Street Selection & Maps Location Link (Visible only for home deliveries) */}
+          {(shippingOption === 'tripoli_center' || shippingOption === 'tripoli_suburbs') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--accent)', marginTop: '0.5rem' }}>
+              
+              {/* Searchable Street Select */}
+              <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{t('checkout.select_street')}</span>
+                  {selectedStreet && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 'bold' }}>
+                      ✓ {lang === 'ar' ? 'تم الاختيار' : 'Selected'}
+                    </span>
+                  )}
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={t('checkout.select_street_placeholder')}
+                    value={streetSearch}
+                    onChange={(e) => {
+                      setStreetSearch(e.target.value);
+                      setSelectedStreet('');
+                      setShowStreetDropdown(true);
+                    }}
+                    onFocus={() => setShowStreetDropdown(true)}
+                    onBlur={handleBlur}
+                    style={{ paddingRight: isRtl ? '2.5rem' : '1rem', paddingLeft: isRtl ? '1rem' : '2.5rem' }}
+                  />
+                  <MapPin size={18} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [isRtl ? 'right' : 'left']: '0.8rem', color: 'var(--text-muted)' }} />
+                </div>
+
+                {/* Dropdown Menu */}
+                {showStreetDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: 'var(--surface-color)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      boxShadow: 'var(--shadow-md)',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      zIndex: 100,
+                      marginTop: '0.25rem'
+                    }}
+                  >
+                    {filteredStreets.length > 0 ? (
+                      filteredStreets.map((street) => (
+                        <div
+                          key={street}
+                          onMouseDown={() => {
+                            setSelectedStreet(street);
+                            setStreetSearch(street);
+                            setShowStreetDropdown(false);
+                          }}
+                          style={{
+                            padding: '0.8rem 1rem',
+                            cursor: 'pointer',
+                            backgroundColor: selectedStreet === street ? 'var(--accent)' : 'transparent',
+                            color: selectedStreet === street ? 'var(--secondary)' : 'var(--text-color)',
+                            fontSize: '0.9rem',
+                            borderBottom: '1px solid var(--border-color)',
+                            fontWeight: selectedStreet === street ? 700 : 400
+                          }}
+                          className="street-option"
+                        >
+                          {street}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: '0.8rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        {lang === 'ar' ? 'لا توجد نتائج مطابقة' : 'No matching results'}
+                      </div>
+                    )}
+
+                    {/* Custom Value Option */}
+                    {streetSearch.trim() && !TRIPOLI_STREETS.includes(streetSearch.trim()) && (
+                      <div
+                        onMouseDown={() => {
+                          setSelectedStreet(streetSearch);
+                          setShowStreetDropdown(false);
+                        }}
+                        style={{
+                          padding: '0.8rem 1rem',
+                          cursor: 'pointer',
+                          backgroundColor: 'rgba(var(--secondary-rgb), 0.1)',
+                          color: 'var(--secondary)',
+                          fontSize: '0.9rem',
+                          borderTop: '1px dashed var(--border-color)',
+                          fontWeight: 700
+                        }}
+                      >
+                        {lang === 'ar' ? `استخدام القيمة المدخلة: "${streetSearch}"` : `Use custom value: "${streetSearch}"`}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Location URL Input */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">{t('checkout.location_url')}</label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder={t('checkout.location_url_placeholder')}
+                  value={locationUrl}
+                  onChange={(e) => setLocationUrl(e.target.value)}
+                />
+              </div>
+
+            </div>
+          )}
 
           {/* Notes */}
           <div className="form-group" style={{ marginBottom: 0 }}>
@@ -433,6 +657,10 @@ export const CheckoutPage = () => {
       </div>
 
       <style>{`
+        .street-option:hover {
+          background-color: var(--accent) !important;
+          color: var(--secondary) !important;
+        }
         @media (max-width: 768px) {
           .checkout-grid {
             grid-template-columns: 1fr !important;
