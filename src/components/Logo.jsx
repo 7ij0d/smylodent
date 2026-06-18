@@ -17,7 +17,7 @@ export const Logo = ({ width = 160, className = '' }) => {
           fontFamily="System-UI, sans-serif"
           fontWeight="bold"
           fontSize="64"
-          fill="var(--primary)"
+          fill="var(--text-main)"
           style={{ letterSpacing: '-1px' }}
         >
           Smy
@@ -38,12 +38,12 @@ export const Logo = ({ width = 160, className = '' }) => {
           {/* Handpiece handle */}
           <path
             d="M 33 55 L 35 110 C 35 113, 27 113, 27 110 L 29 55 Z"
-            fill="var(--primary)"
+            fill="var(--text-main)"
           />
           {/* Handpiece head */}
           <path
             d="M 24 54 L 38 54 C 42 42, 20 42, 24 54 Z"
-            fill="var(--primary)"
+            fill="var(--text-main)"
           />
           {/* Handpiece drill bit */}
           <line
@@ -51,7 +51,7 @@ export const Logo = ({ width = 160, className = '' }) => {
             y1="45"
             x2="18"
             y2="42"
-            stroke="var(--primary)"
+            stroke="var(--text-main)"
             strokeWidth="2.5"
             strokeLinecap="round"
           />
@@ -81,7 +81,7 @@ export const Logo = ({ width = 160, className = '' }) => {
           fontFamily="System-UI, sans-serif"
           fontWeight="bold"
           fontSize="64"
-          fill="var(--primary)"
+          fill="var(--text-main)"
           style={{ letterSpacing: '-1px' }}
         >
           o
@@ -157,7 +157,7 @@ export const Logo = ({ width = 160, className = '' }) => {
           fontFamily="System-UI, sans-serif"
           fontWeight="bold"
           fontSize="13.5"
-          fill="var(--primary)"
+          fill="var(--text-main)"
           textAnchor="middle"
           style={{ letterSpacing: '4.5px' }}
         >
