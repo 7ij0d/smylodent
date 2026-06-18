@@ -42,12 +42,32 @@ export const ReviewSection = ({ productId }) => {
     fetchReviews();
   }, [productId]);
 
-  // Autocomplete student name if logged in
+  // Autocomplete student name if logged in and not admin
   useEffect(() => {
-    if (profile?.full_name) {
+    if (profile?.full_name && profile.role !== 'admin') {
       setReviewerName(profile.full_name);
+    } else {
+      setReviewerName('');
     }
   }, [profile]);
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('هل أنت متأكد من رغبتك في حذف هذا التقييم؟ / Confirm delete review?')) return;
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId);
+      
+      if (!error) {
+        setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+      } else {
+        alert('حدث خطأ أثناء الحذف. / Error deleting review.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -112,10 +132,34 @@ export const ReviewSection = ({ productId }) => {
                 <div key={rev.id} style={{ padding: '1rem', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                     <h4 style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>{rev.reviewer_name}</h4>
-                    <div style={{ display: 'flex', color: 'var(--warning)' }}>
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={12} fill={i < rev.rating ? 'var(--warning)' : 'none'} strokeWidth={1.5} />
-                      ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', color: 'var(--warning)' }}>
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} size={12} fill={i < rev.rating ? 'var(--warning)' : 'none'} strokeWidth={1.5} />
+                        ))}
+                      </div>
+                      
+                      {/* Admin Delete Action */}
+                      {profile?.role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReview(rev.id)}
+                          style={{
+                            color: 'var(--danger)',
+                            border: 'none',
+                            backgroundColor: 'transparent',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            padding: '2px 6px',
+                            borderRadius: 'var(--radius-sm)',
+                            marginLeft: '0.5rem'
+                          }}
+                          title="حذف التقييم"
+                        >
+                          حذف / Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>{rev.comment}</p>
