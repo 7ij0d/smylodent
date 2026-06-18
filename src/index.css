@@ -333,3 +333,9 @@ img {
     background: transparent !important;
   }
 }
+
+/* Fix dropdown option text visibility in Dark Mode */
+select option {
+  background-color: var(--surface-color) !important;
+  color: var(--text-main) !important;
+}

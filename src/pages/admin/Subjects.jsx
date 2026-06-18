@@ -176,6 +176,8 @@ export const Subjects = () => {
             style={{
               width: '100%',
               maxWidth: '500px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               backgroundColor: 'var(--surface-color)',
               padding: '2rem 1.5rem',
               display: 'flex',
