@@ -60,7 +60,7 @@ export const CartPage = () => {
                 
                 {/* Product Image */}
                 <Link to={`/product/${item.id}`} style={{ width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', backgroundColor: 'var(--border-color)' }}>
-                  <img src={item.image_url} alt={item.name_ar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={item.image_url} alt={item.name_en} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </Link>
 
                 {/* Info and Quantity count */}

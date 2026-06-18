@@ -175,7 +175,7 @@ export const ProductDetails = () => {
           >
             <img
               src={activeImage || 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=600&auto=format'}
-              alt={lang === 'ar' ? product.name_ar : product.name_en}
+              alt={product.name_en}
               style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
               className="zoom-image"
             />
