@@ -165,7 +165,7 @@ export const ProductCard = ({ product, onFavChanged }) => {
       <Link to={`/product/${product.id}`} style={{ display: 'block', overflow: 'hidden', height: '200px', backgroundColor: 'var(--border-color)' }}>
         <img
           src={product.image_url || 'https://images.unsplash.com/photo-1579684389782-64d84b5e901a?w=500&auto=format'}
-          alt={lang === 'ar' ? product.name_ar : product.name_en}
+          alt={product.name_en}
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.5s ease' }}
           className="product-card-img"
         />
@@ -200,7 +200,7 @@ export const ProductCard = ({ product, onFavChanged }) => {
             }}
             className="product-title-link"
           >
-            {lang === 'ar' ? product.name_ar : product.name_en}
+            {product.name_en}
           </h3>
         </Link>
 

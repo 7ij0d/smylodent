@@ -393,7 +393,7 @@ export const CheckoutPage = () => {
               {cartItems.map((item) => (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                   <span style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {lang === 'ar' ? item.name_ar : item.name_en} <strong style={{ color: 'var(--secondary)' }}>x{item.quantity}</strong>
+                    {item.name_en} <strong style={{ color: 'var(--secondary)' }}>x{item.quantity}</strong>
                   </span>
                   <span style={{ fontWeight: 600 }}>
                     {(item.price * item.quantity).toFixed(2)} {t('cart.currency')}

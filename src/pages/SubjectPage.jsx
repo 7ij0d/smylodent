@@ -141,14 +141,14 @@ export const SubjectPage = () => {
           </>
         )}
         <span style={{ fontWeight: 600, color: 'var(--secondary)' }}>
-          {lang === 'ar' ? subjectData.name_ar : subjectData.name_en}
+          {subjectData.name_en}
         </span>
       </div>
 
       {/* Header Info */}
       <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '0.8rem' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)' }}>
-          {lang === 'ar' ? subjectData.name_ar : subjectData.name_en}
+          {subjectData.name_en}
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
           {lang === 'ar' ? subjectData.description_ar : subjectData.description_en}

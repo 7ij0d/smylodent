@@ -228,13 +228,13 @@ export const ProductDetails = () => {
               }}
             >
               <Sparkles size={16} />
-              {lang === 'ar' ? subject.name_ar : subject.name_en}
+              {subject.name_en}
             </Link>
           )}
 
           {/* Title */}
           <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)' }}>
-            {lang === 'ar' ? product.name_ar : product.name_en}
+            {product.name_en}
           </h1>
 
           {/* Pricing tag row */}
@@ -356,7 +356,7 @@ export const ProductDetails = () => {
         isOpen={qrOpen}
         onClose={() => setQrOpen(false)}
         productUrl={window.location.href}
-        productName={lang === 'ar' ? product.name_ar : product.name_en}
+        productName={product.name_en}
       />
 
       <style>{`

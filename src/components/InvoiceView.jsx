@@ -131,7 +131,7 @@ export const InvoiceView = ({ order }) => {
                 return (
                   <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '1rem', fontWeight: 500 }}>
-                      {lang === 'ar' ? item.products?.name_ar || item.name_ar : item.products?.name_en || item.name_en}
+                      {item.products?.name_en || item.name_en}
                     </td>
                     <td style={{ padding: '1rem', textAlign: 'center' }}>
                       {item.price} {t('cart.currency')}

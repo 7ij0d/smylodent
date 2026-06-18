@@ -66,7 +66,7 @@ export const CartPage = () => {
                 {/* Info and Quantity count */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <Link to={`/product/${item.id}`} style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }} className="product-title-link">
-                    {t('nav.home') === 'الرئيسية' ? item.name_ar : item.name_en}
+                    {item.name_en}
                   </Link>
                   <p style={{ fontSize: '0.85rem', color: 'var(--secondary)', fontWeight: 700 }}>
                     {item.price} {t('cart.currency')}

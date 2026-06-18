@@ -113,7 +113,7 @@ export const YearPage = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', transition: 'var(--transition-fast)' }} className="subject-title">
-                  {lang === 'ar' ? sub.name_ar : sub.name_en}
+                  {sub.name_en}
                 </h3>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                   {lang === 'ar' ? sub.description_ar : sub.description_en}

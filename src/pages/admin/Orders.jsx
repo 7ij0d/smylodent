@@ -331,7 +331,7 @@ export const Orders = () => {
                     }}
                   >
                     <span>
-                      {lang === 'ar' ? item.products?.name_ar || item.name_ar : item.products?.name_en || item.name_en}{' '}
+                      {item.products?.name_en || item.name_en}{' '}
                       <strong style={{ color: 'var(--secondary)' }}>x{item.quantity}</strong>
                     </span>
                     <span style={{ fontWeight: 700 }}>
