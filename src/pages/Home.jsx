@@ -12,11 +12,12 @@ export const Home = () => {
   const [banners, setBanners] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [discountedProducts, setDiscountedProducts] = useState([]);
+  const [years, setYears] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
 
-  // Load Banners & Products
+  // Load Banners, Products & Years
   useEffect(() => {
     const fetchBanners = async () => {
       setLoadingBanners(true);
@@ -49,8 +50,18 @@ export const Home = () => {
       setLoadingProducts(false);
     };
 
+    const fetchYears = async () => {
+      try {
+        const { data } = await supabase.from('years').select('*').order('slug', { ascending: true });
+        if (data && data.length > 0) setYears(data);
+      } catch (err) {
+        console.warn('Failed to load years from Supabase', err);
+      }
+    };
+
     fetchBanners();
     fetchProducts();
+    fetchYears();
   }, []);
 
   // Banner slider automatic cycle
@@ -69,6 +80,36 @@ export const Home = () => {
   const handlePrevBanner = () => {
     setActiveBannerIdx((prev) => (prev - 1 + banners.length) % banners.length);
   };
+
+  // Get years list with fallbacks
+  const getYearsList = () => {
+    if (years.length > 0) {
+      const yearColors = {
+        '1st-year': '#00a896',
+        '2nd-year': '#028090',
+        '3rd-year': '#028090',
+        '4th-year': '#02c39a'
+      };
+      return years.map(y => ({
+        id: y.id,
+        key: y.slug,
+        label: lang === 'ar' ? y.name_ar : y.name_en,
+        desc: lang === 'ar' ? `المواد والأدوات الخاصة بـ ${y.name_ar}` : `Subjects and supplies for ${y.name_en}`,
+        color: yearColors[y.slug] || '#028090',
+        image_url: y.image_url
+      }));
+    }
+
+    // Static fallback
+    return [
+      { key: '1st-year', label: t('years.y1'), desc: t('years.y1_desc'), color: '#00a896', image_url: null },
+      { key: '2nd-year', label: t('years.y2'), desc: t('years.y2_desc'), color: '#028090', image_url: null },
+      { key: '3rd-year', label: t('years.y3'), desc: t('years.y3_desc'), color: '#028090', image_url: null },
+      { key: '4th-year', label: t('years.y4'), desc: t('years.y4_desc'), color: '#02c39a', image_url: null }
+    ];
+  };
+
+  const yearsList = getYearsList();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', paddingBottom: '3rem' }}>
@@ -166,29 +207,64 @@ export const Home = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }} className="years-grid">
-          {[
-            { key: '1st-year', label: t('years.y1'), desc: t('years.y1_desc'), color: '#00a896' },
-            { key: '2nd-year', label: t('years.y2'), desc: t('years.y2_desc'), color: '#028090' },
-            { key: '3rd-year', label: t('years.y3'), desc: t('years.y3_desc'), color: '#f0f3bd' },
-            { key: '4th-year', label: t('years.y4'), desc: t('years.y4_desc'), color: '#02c39a' }
-          ].map((y) => (
+          {yearsList.map((y) => (
             <Link
               to={`/year/${y.key}`}
               key={y.key}
               className="card year-nav-card"
               style={{
-                padding: '2rem 1.5rem',
+                padding: '2.5rem 1.5rem',
                 textAlign: 'center',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.8rem',
                 alignItems: 'center',
-                borderLeft: `4px solid ${y.color}`
+                borderLeft: `4px solid ${y.color}`,
+                position: 'relative',
+                overflow: 'hidden',
+                justifyContent: 'center',
+                minHeight: '180px'
               }}
             >
-              <Award size={36} style={{ color: y.color }} />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)' }}>{y.label}</h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{y.desc}</p>
+              {y.image_url && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundImage: `url(${y.image_url})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: 'blur(3px) brightness(0.35)',
+                    transform: 'scale(1.15)',
+                    zIndex: 0,
+                    transition: 'var(--transition-smooth)'
+                  }}
+                />
+              )}
+              
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem' }}>
+                <Award size={36} style={{ color: y.image_url ? '#ffffff' : y.color, filter: y.image_url ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' : 'none' }} />
+                <h3 style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  color: y.image_url ? '#ffffff' : 'var(--text-main)',
+                  textShadow: y.image_url ? '0 2px 4px rgba(0,0,0,0.8)' : 'none'
+                }}>
+                  {y.label}
+                </h3>
+                <p style={{
+                  fontSize: '0.85rem',
+                  color: y.image_url ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-muted)',
+                  lineHeight: 1.5,
+                  textShadow: y.image_url ? '0 1px 3px rgba(0,0,0,0.8)' : 'none',
+                  fontWeight: y.image_url ? 500 : 400
+                }}>
+                  {y.desc}
+                </p>
+              </div>
             </Link>
           ))}
         </div>
@@ -290,6 +366,10 @@ export const Home = () => {
         .year-nav-card:hover {
           background-color: var(--accent);
           transform: translateY(-5px);
+        }
+        .year-nav-card:hover div {
+          transform: scale(1.2) !important;
+          filter: blur(2px) brightness(0.45) !important;
         }
       `}</style>
     </div>

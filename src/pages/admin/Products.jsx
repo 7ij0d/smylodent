@@ -31,7 +31,7 @@ export const Products = () => {
   const [yearId, setYearId] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [mainImageUrl, setMainImageUrl] = useState('');
-  const [extraImageUrlsText, setExtraImageUrlsText] = useState('');
+  const [extraImageUrls, setExtraImageUrls] = useState([]);
   const [usageVideoUrl, setUsageVideoUrl] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
   const [isActive, setIsActive] = useState(true);
@@ -137,13 +137,9 @@ export const Products = () => {
     const urls = [];
     for (const file of files) {
       const url = await uploadFile(file);
-      urls.push(url);
+      if (url) urls.push(url);
     }
-    setExtraImageUrlsText((prev) => {
-      const existing = prev.trim();
-      const newUrls = urls.join('\n');
-      return existing ? `${existing}\n${newUrls}` : newUrls;
-    });
+    setExtraImageUrls((prev) => [...prev, ...urls]);
     setUploadingExtra(false);
   };
 
@@ -194,7 +190,7 @@ export const Products = () => {
     setYearId(years.length > 0 ? years[0].id : '');
     setSubjectId('');
     setMainImageUrl('');
-    setExtraImageUrlsText('');
+    setExtraImageUrls([]);
     setUsageVideoUrl('');
     setIsFeatured(false);
     setIsActive(true);
@@ -224,12 +220,13 @@ export const Products = () => {
     const { data: extraImgs } = await supabase
       .from('product_images')
       .select('image_url')
-      .eq('product_id', prod.id);
+      .eq('product_id', prod.id)
+      .order('sort_order', { ascending: true });
     
     if (extraImgs) {
-      setExtraImageUrlsText(extraImgs.map((img) => img.image_url).join('\n'));
+      setExtraImageUrls(extraImgs.map((img) => img.image_url));
     } else {
-      setExtraImageUrlsText('');
+      setExtraImageUrls([]);
     }
 
     setShowFormModal(true);
@@ -287,10 +284,7 @@ export const Products = () => {
         // Clear old ones first
         await supabase.from('product_images').delete().eq('product_id', productId);
         
-        const extraUrls = extraImageUrlsText
-          .split('\n')
-          .map((url) => url.trim())
-          .filter(Boolean);
+        const extraUrls = extraImageUrls.filter(Boolean);
 
         if (extraUrls.length > 0) {
           const insertPayload = extraUrls.map((url, index) => ({
@@ -565,20 +559,51 @@ export const Products = () => {
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <label className="form-label" style={{ marginBottom: 0 }}>{t('admin.image_urls')}</label>
+                  <label className="form-label" style={{ marginBottom: 0 }}>صور إضافية للمنتج / Supplementary Images</label>
                   <label className="btn btn-outline" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
                     {uploadingExtra ? 'جاري الرفع...' : 'رفع صور إضافية'}
                     <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleExtraImagesChange} disabled={uploadingExtra} />
                   </label>
                 </div>
-                <textarea
-                  className="form-input"
-                  rows="3"
-                  value={extraImageUrlsText}
-                  onChange={(e) => setExtraImageUrlsText(e.target.value)}
-                  placeholder="https://example.com/photo2.jpg&#10;https://example.com/photo3.jpg"
-                  style={{ resize: 'none' }}
-                />
+                
+                {extraImageUrls.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginTop: '0.5rem', border: '1px dashed var(--border-color)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                    {extraImageUrls.map((url, idx) => (
+                      <div key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                        <img src={url} alt={`extra-${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <button
+                          type="button"
+                          onClick={() => setExtraImageUrls((prev) => prev.filter((_, i) => i !== idx))}
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            right: '2px',
+                            backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '18px',
+                            height: '18px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            cursor: 'pointer',
+                            padding: 0,
+                            lineHeight: 1
+                          }}
+                          title="حذف الصورة"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                    لم يتم رفع أي صور إضافية لهذا المنتج بعد.
+                  </div>
+                )}
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
