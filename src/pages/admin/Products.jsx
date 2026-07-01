@@ -40,6 +40,14 @@ export const Products = () => {
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingExtra, setUploadingExtra] = useState(false);
 
+  // Audio recording/upload states
+  const [audioUrl, setAudioUrl] = useState('');
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [audioChunks, setAudioChunks] = useState([]);
+  const [recordedBlobUrl, setRecordedBlobUrl] = useState('');
+
   const compressImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -143,6 +151,109 @@ export const Products = () => {
     setUploadingExtra(false);
   };
 
+  const uploadAudioFile = async (file) => {
+    try {
+      const fileExt = file.name.split('.').pop() || 'mp3';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+      const filePath = `audios/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('smylodent-assets')
+        .upload(filePath, file, { contentType: file.type });
+
+      if (error) {
+        console.warn('Storage upload failed, trying to read as dataURL', error);
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = (e) => resolve(e.target.result);
+        });
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('smylodent-assets')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err) {
+      console.error('Audio upload error:', err);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => resolve(e.target.result);
+      });
+    }
+  };
+
+  const handleAudioFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingAudio(true);
+    const url = await uploadAudioFile(file);
+    if (url) {
+      setAudioUrl(url);
+    }
+    setUploadingAudio(false);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/mp3' });
+        const blobUrl = URL.createObjectURL(blob);
+        setRecordedBlobUrl(blobUrl);
+        setAudioChunks(chunks);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setRecording(true);
+      setAudioChunks([]);
+      setRecordedBlobUrl('');
+    } catch (err) {
+      console.error('Error starting audio recording:', err);
+      alert(lang === 'ar' ? 'فشل الوصول إلى الميكروفون. يرجى تفعيل الصلاحيات.' : 'Microphone access failed. Please enable permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder && recording) {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+      setRecording(false);
+    }
+  };
+
+  const handleUploadRecordedAudio = async () => {
+    if (audioChunks.length === 0) return;
+    setUploadingAudio(true);
+    try {
+      const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+      const file = new File([blob], `audio-record-${Date.now()}.mp3`, { type: 'audio/mp3' });
+      const url = await uploadAudioFile(file);
+      if (url) {
+        setAudioUrl(url);
+        setRecordedBlobUrl('');
+        setAudioChunks([]);
+        alert(lang === 'ar' ? 'تم حفظ التسجيل الصوتي بنجاح!' : 'Audio recording saved successfully!');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload recorded audio');
+    } finally {
+      setUploadingAudio(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -194,6 +305,9 @@ export const Products = () => {
     setUsageVideoUrl('');
     setIsFeatured(false);
     setIsActive(true);
+    setAudioUrl('');
+    setRecordedBlobUrl('');
+    setAudioChunks([]);
     setShowFormModal(true);
   };
 
@@ -215,6 +329,9 @@ export const Products = () => {
     setUsageVideoUrl(prod.usage_video_url || '');
     setIsFeatured(prod.is_featured || false);
     setIsActive(prod.is_active !== false);
+    setAudioUrl(prod.audio_url || '');
+    setRecordedBlobUrl('');
+    setAudioChunks([]);
 
     // Fetch extra images
     const { data: extraImgs } = await supabase
@@ -261,6 +378,7 @@ export const Products = () => {
       subject_id: subjectId || null,
       image_url: mainImageUrl.trim(),
       usage_video_url: usageVideoUrl.trim() || null,
+      audio_url: audioUrl.trim() || null,
       is_featured: isFeatured,
       is_active: isActive
     };
@@ -619,6 +737,104 @@ export const Products = () => {
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">{t('admin.video_url')}</label>
                 <input type="url" className="form-input" value={usageVideoUrl} onChange={(e) => setUsageVideoUrl(e.target.value)} placeholder="https://www.youtube.com/embed/XXXX" />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>التسجيل الصوتي التوضيحي للمنتج / Audio Explanation (Optional)</span>
+                  {audioUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setAudioUrl('')}
+                      style={{ border: 'none', background: 'none', color: 'var(--danger)', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      حذف التسجيل الصوتي / Delete Audio
+                    </button>
+                  )}
+                </label>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', border: '1px solid var(--border-color)', padding: '1rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--accent)' }}>
+                  
+                  {/* Current Active Audio Preview */}
+                  {audioUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>🎧 التسجيل الحالي / Active Audio:</span>
+                      <audio src={audioUrl} controls style={{ width: '100%', height: '40px' }} />
+                    </div>
+                  )}
+
+                  {/* Audio Controls (Record / Upload File) */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+                    
+                    {/* Native File Upload */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexGrow: 1 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={audioUrl}
+                        onChange={(e) => setAudioUrl(e.target.value)}
+                        placeholder="رابط التسجيل الصوتي أو اختر/سجل ملفاً..."
+                        style={{ fontSize: '0.85rem' }}
+                      />
+                      <label className="btn btn-outline" style={{ padding: '0.65rem 1rem', fontSize: '0.85rem', cursor: 'pointer', whiteSpace: 'nowrap', marginBottom: 0, display: 'inline-flex', alignItems: 'center' }}>
+                        {uploadingAudio ? 'جاري الرفع...' : 'رفع ملف صوتي'}
+                        <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleAudioFileChange} disabled={uploadingAudio} />
+                      </label>
+                    </div>
+
+                    {/* Microphone Recorder Panel */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {!recording ? (
+                        <button
+                          type="button"
+                          onClick={startRecording}
+                          className="btn btn-outline"
+                          style={{ borderColor: 'var(--danger)', color: 'var(--danger)', padding: '0.65rem 1rem', fontSize: '0.85rem', gap: '0.3rem', display: 'flex', alignItems: 'center' }}
+                        >
+                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--danger)', animation: 'pulse-smile 1s infinite' }}></span>
+                          تسجيل صوتي مباشر
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={stopRecording}
+                          className="btn btn-secondary"
+                          style={{ backgroundColor: 'var(--danger)', color: 'white', padding: '0.65rem 1rem', fontSize: '0.85rem' }}
+                        >
+                          إيقاف التسجيل ⏹️
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recorded Audio Preview before Uploading */}
+                  {recordedBlobUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.8rem', marginTop: '0.4rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger)' }}>🎙️ معاينة التسجيل الجديد / Preview:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <audio src={recordedBlobUrl} controls style={{ flexGrow: 1, height: '40px' }} />
+                        <button
+                          type="button"
+                          onClick={handleUploadRecordedAudio}
+                          disabled={uploadingAudio}
+                          className="btn btn-secondary"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                        >
+                          {uploadingAudio ? 'جاري الحفظ...' : 'حفظ ومزامنة التسجيل'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setRecordedBlobUrl(''); setAudioChunks([]); }}
+                          className="btn btn-outline"
+                          style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', borderColor: 'var(--border-color)' }}
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1rem' }} className="modal-form-row">

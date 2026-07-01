@@ -8,7 +8,180 @@ import ReviewSection from '../components/ReviewSection';
 import QRModal from '../components/QRModal';
 import SkeletonLoader from '../components/SkeletonLoader';
 import ProductCard from '../components/ProductCard';
-import { ShoppingCart, Heart, Share2, QrCode, Check, Copy, Play, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { ShoppingCart, Heart, Share2, QrCode, Check, Copy, Play, Pause, Volume2, VolumeX, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+
+const AudioPlayer = ({ src }) => {
+  const { lang, isRtl } = useLanguage();
+  const audioRef = React.useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('ended', onEnded);
+
+    // If source changes, reset player state
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, [src]);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio.play().catch(err => console.error("Error playing audio", err));
+      setIsPlaying(true);
+    }
+  };
+
+  const handleSeek = (e) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = parseFloat(e.target.value);
+    setCurrentTime(parseFloat(e.target.value));
+  };
+
+  const toggleMute = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.muted = !isMuted;
+    setIsMuted(!isMuted);
+  };
+
+  const formatTime = (secs) => {
+    if (isNaN(secs) || !isFinite(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        backgroundColor: 'var(--surface-color)',
+        border: '1.5px solid var(--secondary)',
+        borderRadius: 'var(--radius-md)',
+        padding: '0.8rem 1rem',
+        position: 'relative',
+        overflow: 'hidden',
+        width: '100%',
+        boxShadow: 'var(--shadow-sm)',
+        direction: isRtl ? 'rtl' : 'ltr'
+      }}
+      className="audio-explanation-player"
+    >
+      <audio ref={audioRef} src={src} preload="metadata" />
+      
+      {/* Play/Pause Circle Button */}
+      <button
+        onClick={togglePlay}
+        type="button"
+        style={{
+          width: '42px',
+          height: '42px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--secondary)',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: 'none',
+          cursor: 'pointer',
+          flexShrink: 0,
+          boxShadow: '0 4px 8px rgba(var(--secondary-rgb), 0.25)',
+          transition: 'transform 0.15s ease'
+        }}
+        className="play-audio-btn"
+      >
+        {isPlaying ? <Pause size={18} fill="white" /> : <Play size={18} fill="white" style={{ marginLeft: isRtl ? '0' : '2px', marginRight: isRtl ? '2px' : '0' }} />}
+      </button>
+
+      {/* Progress slider & Details */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flexGrow: 1, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {lang === 'ar' ? '🎧 استمع إلى الشرح الصوتي للمنتج' : '🎧 Listen to Audio Explanation'}
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+            {formatTime(currentTime)} / {formatTime(duration)}
+          </span>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          value={currentTime}
+          onChange={handleSeek}
+          style={{
+            width: '100%',
+            height: '4px',
+            borderRadius: '2px',
+            backgroundColor: 'var(--border-color)',
+            outline: 'none',
+            cursor: 'pointer',
+            accentColor: 'var(--secondary)'
+          }}
+        />
+      </div>
+
+      {/* Volume control */}
+      <button
+        onClick={toggleMute}
+        type="button"
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--text-muted)',
+          cursor: 'pointer',
+          padding: '0.4rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}
+      >
+        {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+      </button>
+
+      {/* Bouncing audio wave simulation (only shown when playing) */}
+      {isPlaying && (
+        <div style={{ display: 'flex', gap: '2px', alignItems: 'flex-end', height: '18px', flexShrink: 0, marginLeft: isRtl ? '0' : '0.25rem', marginRight: isRtl ? '0.25rem' : '0' }}>
+          <div className="audio-wave-bar" style={{ width: '2px', height: '8px', backgroundColor: 'var(--secondary)', borderRadius: '1px', animation: 'bounceAudio 0.8s infinite alternate' }}></div>
+          <div className="audio-wave-bar" style={{ width: '2px', height: '14px', backgroundColor: 'var(--secondary)', borderRadius: '1px', animation: 'bounceAudio 1.2s infinite alternate 0.2s' }}></div>
+          <div className="audio-wave-bar" style={{ width: '2px', height: '6px', backgroundColor: 'var(--secondary)', borderRadius: '1px', animation: 'bounceAudio 0.9s infinite alternate 0.1s' }}></div>
+          <div className="audio-wave-bar" style={{ width: '2px', height: '11px', backgroundColor: 'var(--secondary)', borderRadius: '1px', animation: 'bounceAudio 1.1s infinite alternate 0.3s' }}></div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const ProductDetails = () => {
   const { id } = useParams();
@@ -328,6 +501,11 @@ export const ProductDetails = () => {
             {lang === 'ar' ? product.description_ar : product.description_en}
           </p>
 
+          {/* Audio Explanation Player */}
+          {product.audio_url && (
+            <AudioPlayer src={product.audio_url} />
+          )}
+
           {/* Bullet specifications list */}
           {(lang === 'ar' ? product.details_ar : product.details_en) && (
             <div style={{ backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem 1.25rem' }}>
@@ -436,6 +614,10 @@ export const ProductDetails = () => {
       <style>{`
         .zoom-image:hover {
           transform: scale(1.08);
+        }
+        @keyframes bounceAudio {
+          0% { height: 4px; }
+          100% { height: 16px; }
         }
         @media (max-width: 768px) {
           .details-main-grid {

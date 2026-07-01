@@ -532,16 +532,21 @@ const mockAuth = {
   }
 };
 
+const mockObjectUrls = {};
 const mockStorage = {
   from: (bucket) => ({
     upload: async (path, file) => {
-      // Mock upload returns a local url or placeholder
+      // Mock upload returns a local ObjectURL and stores it in memory
       const url = URL.createObjectURL(file);
+      mockObjectUrls[path] = url;
       return { data: { path, publicUrl: url }, error: null };
     },
     getPublicUrl: (path) => {
+      if (mockObjectUrls[path]) {
+        return { data: { publicUrl: mockObjectUrls[path] } };
+      }
       // Mock file url fallback
-      return { data: { publicUrl: `https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=500&auto=format` } };
+      return { data: { publicUrl: path.startsWith('audios/') ? '' : `https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=500&auto=format` } };
     }
   })
 };

@@ -24,7 +24,7 @@ export const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [passcode, setPasscode] = useState(() => sessionStorage.getItem('admin_passcode') || '');
+  const [passcode, setPasscode] = useState(() => localStorage.getItem('admin_passcode') || '');
   const [inputCode, setInputCode] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
@@ -57,11 +57,11 @@ export const AdminLayout = () => {
         if (error) {
           console.warn('Background admin sign in failed', error);
         }
-        sessionStorage.setItem('admin_passcode', '9922');
+        localStorage.setItem('admin_passcode', '9922');
         setPasscode('9922');
       } catch (err) {
         console.warn('Failed background sign in', err);
-        sessionStorage.setItem('admin_passcode', '9922');
+        localStorage.setItem('admin_passcode', '9922');
         setPasscode('9922');
       } finally {
         setLoginLoading(false);
